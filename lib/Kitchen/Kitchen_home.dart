@@ -47,6 +47,7 @@ class _VendorHomeState extends State<VendorHome> {
             SizedBox(height: 20.0,),
             GestureDetector(
               onTap: (){
+                Navigator.push(context,MaterialPageRoute(builder: (context) => AddFood(kitchenId: loggedInKitchenId!)),);
                 },
               child: Material(
                 elevation: 10.0,

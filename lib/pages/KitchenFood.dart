@@ -3,20 +3,20 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:foodapp/pages/details2.dart';
 
 class FoodItemsPage extends StatelessWidget {
-  final String kitchenName; // Store the kitchen name
+  final String kitchenname; // Store the kitchen name
 
-  const FoodItemsPage({Key? key, required this.kitchenName}) : super(key: key);
+  const FoodItemsPage({Key? key, required this.kitchenname}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('$kitchenName Food Items'), // Display the kitchen name in the app bar
+        title: Text('$kitchenname Food Items'), // Display the kitchen name in the app bar
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('fooditem')
-            .doc(kitchenName) // Use kitchen name as document ID
+            .doc(kitchenname) // Use kitchen name as document ID
             .collection('categories')
             .snapshots(), // Listen for changes in categories
         builder: (context, snapshot) {
@@ -43,7 +43,7 @@ class FoodItemsPage extends StatelessWidget {
                   StreamBuilder<QuerySnapshot>(
                     stream: FirebaseFirestore.instance
                         .collection('fooditem')
-                        .doc(kitchenName) // Use kitchen name as document ID
+                        .doc(kitchenname) // Use kitchen name as document ID
                         .collection('categories')
                         .doc(categoryDoc.id) // Current category ID
                         .collection('Items')
@@ -82,7 +82,7 @@ class FoodItemsPage extends StatelessWidget {
                                     name: foodItemDoc['Name'],
                                     image: foodItemDoc['Image'],
                                     price: foodItemDoc['Price'],
-                                    // kitchenName: foodItemDoc['KitchenName'],
+                                    kitchenname: foodItemDoc['Kitchenname'],
                                   ),
                                 ),
                               );
@@ -117,7 +117,7 @@ class FoodItemsPage extends StatelessWidget {
                                           style: TextStyle(color: Colors.grey[700]),
                                         ),
                                         Text(
-                                          'Kitchen: $kitchenName',
+                                          'Kitchen: $kitchenname',
                                           style: TextStyle(color: Colors.grey[700]),
                                         ),
                                       ],

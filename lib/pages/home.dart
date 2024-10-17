@@ -103,7 +103,7 @@ class _HomeState extends State<Home> {
             return GestureDetector(
               onTap: (){
                 Navigator.push(context, MaterialPageRoute(builder: (context)=>Detail(detail: ds["Detail"],name: ds["Name"], image: ds["Image"], price: ds["Price"],
-                  // kitchenName: ds["KitchenName"],
+                  kitchenname: ds["Kitchenname"],
                 )));
               },
               child: Container(
@@ -160,7 +160,7 @@ class _HomeState extends State<Home> {
                   name: product["Name"],
                   image: product["Image"],
                   price: product["Price"],
-                  // kitchenName: product["kitchenname"],
+                  kitchenname: product["kitchenname"],
                 ),
               ),
             );
@@ -232,7 +232,7 @@ class _HomeState extends State<Home> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => FoodItemsPage(kitchenName: kitchenName),
+                        builder: (context) => FoodItemsPage(kitchenname: kitchenName),
                       ),
                     );
                   }

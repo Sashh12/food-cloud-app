@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:foodapp/pages/bottomnav.dart';
 import 'package:foodapp/pages/home.dart';
 import 'package:foodapp/service/database.dart';
 import 'package:foodapp/widget/widget_support.dart';
@@ -167,7 +168,7 @@ class _OrderState extends State<Order> {
       await Future.delayed(Duration(seconds: 2));
 
       Navigator.pushReplacement(
-          context, MaterialPageRoute(builder: (context) => Home()));
+          context, MaterialPageRoute(builder: (context) => BottomNav()));
     }
   }
 

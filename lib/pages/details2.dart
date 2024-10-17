@@ -7,7 +7,8 @@ import 'package:foodapp/widget/widget_support.dart';
 
 class Detail extends StatefulWidget {
   String image, name, detail, price;
-  Detail({required this.detail, required this.image, required this.name, required this.price});
+  String kitchenname;
+  Detail({required this.detail, required this.image, required this.name, required this.price, required this.kitchenname});
 
   @override
   State<Detail> createState() => _DetailState();
@@ -204,6 +205,7 @@ class _DetailState extends State<Detail> {
         "date": DateFormat('dd/MM/yy').format(date), // Save the subscription date
         "lunchTime": lunchTime != null ? lunchTime.format(context) : "Not Set", // Handle null case
         "dinnerTime": dinnerTime != null ? dinnerTime.format(context) : "Not Set", // Handle null case
+        "kitchenName": widget.kitchenname,
       };
 
       // Save to Firestore under 'subscribe' collection
@@ -303,6 +305,9 @@ class _DetailState extends State<Detail> {
                 Text("30 mins", style: AppWidget.NormalText()),
               ],
             ),
+            SizedBox(height: 20.0),
+            Text("Kitchen: ${widget.kitchenname}", // Display the kitchen name
+                style: AppWidget.NormalText()),
             Spacer(),
             Padding(
               padding: const EdgeInsets.only(bottom: 40.0),
@@ -347,6 +352,7 @@ class _DetailState extends State<Detail> {
                               "Quantity": a.toString(),
                               "Total": total.toString(),
                               "Image": widget.image,
+                              "kitchenname": widget.kitchenname,
                             };
                             await DatabaseMethods().addFoodtoCart(id!, addFoodtoCart);
                             ScaffoldMessenger.of(context).showSnackBar(SnackBar(

@@ -31,7 +31,7 @@ class _AddFoodState extends State<AddFood> {
 
   final ImagePicker _picker = ImagePicker();
   File? selectedImage;
-  String? currentKitchenName; // To store the current kitchen name
+  String? currentKitchenname; // To store the current kitchen name
 
   @override
   void initState() {
@@ -52,11 +52,11 @@ class _AddFoodState extends State<AddFood> {
 
       if (kitchenSnapshot.exists) {
         // Access the kitchen name from the fetched document
-        currentKitchenName = kitchenSnapshot['kitchenname']; // Adjust field name as necessary
-        print("Current Kitchen Name: $currentKitchenName"); // Print kitchen name
+        currentKitchenname = kitchenSnapshot['kitchenname']; // Adjust field name as necessary
+        print("Current Kitchen Name: $currentKitchenname"); // Print kitchen name
 
         // Fetch categories for the current kitchen
-        fetchCategories(currentKitchenName!);
+        fetchCategories(currentKitchenname!);
       } else {
         print("No kitchen found for this ID");
       }
@@ -66,11 +66,11 @@ class _AddFoodState extends State<AddFood> {
   }
 
 
-  Future<void> fetchCategories(String kitchenName) async {
+  Future<void> fetchCategories(String kitchenname) async {
     try {
       QuerySnapshot snapshot = await FirebaseFirestore.instance
           .collection('fooditem')
-          .doc(kitchenName) // Use kitchen name as document ID
+          .doc(kitchenname) // Use kitchen name as document ID
           .collection('categories')
           .get();
 
@@ -117,7 +117,7 @@ class _AddFoodState extends State<AddFood> {
           "Price": pricecontroller.text,
           "Detail": detailcontroller.text,
           "Ingredients": ingredientcontroller.text.split(','), // Save ingredients as a list
-          "KitchenName": currentKitchenName,
+          "Kitchenname": currentKitchenname,
         };
 
         String categoryToUse = isAddingCategory
@@ -131,18 +131,18 @@ class _AddFoodState extends State<AddFood> {
           });
           await FirebaseFirestore.instance
               .collection('fooditem')
-              .doc(currentKitchenName) // Use the kitchen name as document ID
+              .doc(currentKitchenname) // Use the kitchen name as document ID
               .collection('categories')
               .doc(categoryController.text)
               .set({'name': categoryController.text});
 
-          fetchCategories(currentKitchenName!); // Refresh categories
+          fetchCategories(currentKitchenname!); // Refresh categories
         }
 
         // Save the food item under the selected category for the kitchen
         await FirebaseFirestore.instance
             .collection('fooditem')
-            .doc(currentKitchenName) // Use the kitchen name as document ID
+            .doc(currentKitchenname) // Use the kitchen name as document ID
             .collection('categories')
             .doc(categoryToUse)
             .collection('Items')
