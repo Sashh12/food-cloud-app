@@ -117,7 +117,7 @@ class _AddFoodState extends State<AddFood> {
           "Price": pricecontroller.text,
           "Detail": detailcontroller.text,
           "Ingredients": ingredientcontroller.text.split(','), // Save ingredients as a list
-          "Kitchenname": currentKitchenname,
+          "kitchenname": currentKitchenname,
         };
 
         String categoryToUse = isAddingCategory

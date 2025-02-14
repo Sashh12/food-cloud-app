@@ -39,4 +39,10 @@ class AppWidget{
     return TextStyle( color: Colors.black, fontSize: 18.0,
         fontWeight: FontWeight.w100, fontFamily: 'Poppins');
   }
+
+  static TextStyle normalText() {
+    return TextStyle( color: Colors.black, fontSize: 18.0,
+      fontFamily: 'Vollkorn');
+  }
+
 }

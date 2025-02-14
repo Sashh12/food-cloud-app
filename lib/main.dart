@@ -1,9 +1,9 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
-import 'package:foodapp/Delivery%20boy/Dashboard.dart';
-import 'package:foodapp/Delivery%20boy/delivery_signup.dart';
-import 'package:foodapp/Delivery%20boy/deliveryorders.dart';
+import 'package:foodapp/DeliveryBoyPanel/Dashboard.dart';
+import 'package:foodapp/DeliveryBoyPanel/delivery_signup.dart';
+import 'package:foodapp/DeliveryBoyPanel/deliveryorders.dart';
 import 'package:foodapp/admin/admin_login.dart';
 import 'package:foodapp/admin/home_admin.dart';
 import 'package:foodapp/pages/bottomnav.dart';
@@ -11,6 +11,7 @@ import 'package:foodapp/pages/login.dart';
 import 'package:foodapp/pages/onboard.dart';
 import 'package:foodapp/pages/profile.dart';
 import 'package:foodapp/pages/signup.dart';
+import 'package:foodapp/pages/test.dart';
 import 'package:foodapp/pages/wallet.dart';
 import 'package:foodapp/Kitchen/Kitchen_home.dart';
 import 'package:foodapp/Kitchen/Kitchen_login.dart';
@@ -52,7 +53,8 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: SignUp(),
+      // home: TestFirestoreFetch()
+      home: Onboard(),
     );
   }
 }

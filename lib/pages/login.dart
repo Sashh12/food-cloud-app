@@ -19,29 +19,60 @@ class _LogInState extends State<LogIn> {
   String email = "", password = "";
   final _formkey = GlobalKey<FormState>();
 
-  TextEditingController usermailcontroller = new TextEditingController();
-  TextEditingController userpasswordcontroller = new TextEditingController();
+  TextEditingController usermailcontroller = TextEditingController();
+  TextEditingController userpasswordcontroller = TextEditingController();
 
-  userLogin()async{
+  // Function to validate email format
+  bool isEmailValid(String email) {
+    String pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$';
+    RegExp regExp = RegExp(pattern);
+    return regExp.hasMatch(email);
+  }
+
+  userLogin() async {
+    // Validate email format
+    if (!isEmailValid(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        backgroundColor: Colors.orangeAccent,
+        content: Text("Please enter a valid email", style: TextStyle(fontSize: 20.0)),
+      ));
+      return;
+    }
+
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(email: email, password: password);
-      Navigator.push(context, MaterialPageRoute(builder: (context) => BottomNav()));
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email.trim(),
+        password: password.trim(),
+      );
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => BottomNav()));
     } on FirebaseAuthException catch (e) {
+      // Handle specific authentication errors
+      print("Login failed: ${e.message}"); // Logging for debugging
+
       if (e.code == 'user-not-found') {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            backgroundColor: Colors.orangeAccent,
-            content: Text(
-              "No User Found for that Email",
-              style: TextStyle(fontSize: 20.0),
-        )));
-       } else if (e.code == "wrong-password") {
+          backgroundColor: Colors.orangeAccent,
+          content: Text("No User Found for that Email", style: TextStyle(fontSize: 20.0)),
+        ));
+      } else if (e.code == "wrong-password") {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            backgroundColor: Colors.orangeAccent,
-            content: Text(
-              "Wrong password Provided by User",
-              style: TextStyle(fontSize: 20.0),
-        )));
+          backgroundColor: Colors.orangeAccent,
+          content: Text("Wrong password provided by User", style: TextStyle(fontSize: 20.0)),
+        ));
+      } else {
+        // General error message for other exceptions
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          backgroundColor: Colors.red,
+          content: Text("An error occurred: ${e.message}", style: TextStyle(fontSize: 20.0)),
+        ));
       }
+    } catch (e) {
+      // Catch any unexpected errors
+      print("An unexpected error occurred: $e");
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        backgroundColor: Colors.red,
+        content: Text("An unexpected error occurred.", style: TextStyle(fontSize: 20.0)),
+      ));
     }
   }
 
@@ -69,7 +100,7 @@ class _LogInState extends State<LogIn> {
               ),
               Container(
                 margin: EdgeInsets.only(top: MediaQuery.of(context).size.height / 3),
-                height: MediaQuery.of(context).size.height /3,
+                height: MediaQuery.of(context).size.height / 3,
                 width: MediaQuery.of(context).size.width,
                 decoration: BoxDecoration(
                   color: Colors.white,
@@ -77,7 +108,7 @@ class _LogInState extends State<LogIn> {
                 ),
                 child: Text(" "),
               ),
-              SingleChildScrollView(  // Added SingleChildScrollView
+              SingleChildScrollView(
                 child: Container(
                   margin: EdgeInsets.only(top: 60.0, left: 20.0, right: 20.0),
                   child: Column(
@@ -93,8 +124,8 @@ class _LogInState extends State<LogIn> {
                               email = usermailcontroller.text;
                               password = userpasswordcontroller.text;
                             });
+                            userLogin(); // Call userLogin() only if validation passes
                           }
-                          userLogin();
                         },
                         child: Material(
                           elevation: 5.0,
@@ -102,7 +133,7 @@ class _LogInState extends State<LogIn> {
                           child: Container(
                             padding: EdgeInsets.only(left: 20.0, right: 20.0),
                             width: MediaQuery.of(context).size.width,
-                            height: MediaQuery.of(context).size.height /2 ,
+                            height: MediaQuery.of(context).size.height / 2,
                             decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10)),
                             child: Form(
                               key: _formkey,
@@ -119,7 +150,7 @@ class _LogInState extends State<LogIn> {
                                       }
                                       return null;
                                     },
-                                    decoration: InputDecoration(hintText: "Email",  prefixIcon: Icon(Icons.email_outlined)),
+                                    decoration: InputDecoration(hintText: "Email", prefixIcon: Icon(Icons.email_outlined)),
                                   ),
                                   SizedBox(height: 30.0),
                                   TextFormField(
@@ -131,6 +162,7 @@ class _LogInState extends State<LogIn> {
                                       return null;
                                     },
                                     decoration: InputDecoration(hintText: "Password", prefixIcon: Icon(Icons.password_outlined)),
+                                    obscureText: true, // Hide password
                                   ),
                                   SizedBox(height: 20.0),
                                   GestureDetector(

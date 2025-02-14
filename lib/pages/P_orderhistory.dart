@@ -1,35 +1,68 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:foodapp/pages/bottomnav.dart';
+import 'package:foodapp/service/database.dart';
 
-class VendorsOrders extends StatefulWidget {
+class OrderHistoryPage extends StatefulWidget {
   @override
-  _VendorsOrdersState createState() => _VendorsOrdersState();
+  _OrderHistoryPageState createState() => _OrderHistoryPageState();
 }
 
-class _VendorsOrdersState extends State<VendorsOrders> {
+class _OrderHistoryPageState extends State<OrderHistoryPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  Stream<QuerySnapshot>? _ordersStream;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  Stream<QuerySnapshot>? _userOrderHistoryStream;
 
   @override
   void initState() {
     super.initState();
-    _ordersStream = _firestore.collection('orders').snapshots();
+    _fetchOrderHistory();
   }
 
-  Future<void> _updateOrderStatus(String orderId, String newStatus) async {
-    try {
-      // Update only the order status, no moving to history
-      await _firestore.collection('orders').doc(orderId).update({
-        'KitchenorderStatus': newStatus,
-      });
-    } catch (e) {
-      print("Error updating order status: $e");
+  void _fetchOrderHistory() {
+    final userId = _auth.currentUser?.uid;
+
+    if (userId != null) {
+      _userOrderHistoryStream = _firestore
+          .collection('orderHistory')
+          .doc(userId)
+          .collection('orders')
+          .snapshots();
+    } else {
+      print('No user is logged in');
     }
   }
 
-  Widget allOrders() {
+  Future<void> _addFoodToCart(String userId, Map<String, dynamic> item) async {
+    try {
+      await DatabaseMethods().addFoodtoCart(userId, item); // Use DatabaseMethods
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: Colors.orangeAccent,
+          content: Text(
+            "Food Item Added to Cart",
+            style: TextStyle(fontSize: 18.0),
+          ),
+        ),
+      );
+    } catch (e) {
+      print("Error adding to cart: $e");
+    }
+  }
+
+  void _reorderItems(List<dynamic> items) async {
+    final userId = _auth.currentUser?.uid;
+    if (userId == null) return;
+
+    for (var item in items) {
+      await _addFoodToCart(userId, item);
+    }
+  }
+
+  Widget orderHistoryList() {
     return StreamBuilder<QuerySnapshot>(
-      stream: _ordersStream,
+      stream: _userOrderHistoryStream,
       builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(child: CircularProgressIndicator());
@@ -38,31 +71,20 @@ class _VendorsOrdersState extends State<VendorsOrders> {
           return Center(child: Text('Error: ${snapshot.error}'));
         }
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return Center(child: Text('No orders available'));
+          return Center(child: Text('No order history available'));
         }
+
+        final userId = _auth.currentUser?.uid;
 
         return ListView.builder(
           padding: EdgeInsets.zero,
           itemCount: snapshot.data!.docs.length,
-          shrinkWrap: true,
-          scrollDirection: Axis.vertical,
           itemBuilder: (context, index) {
             DocumentSnapshot ds = snapshot.data!.docs[index];
             final orderId = ds.id;
             final orderDate = (ds['orderDate'] as Timestamp).toDate();
             final totalAmount = ds['totalAmount'];
-            final userId = ds['userId'];
             final items = ds['items'] as List<dynamic>;
-
-            // Cast to Map<String, dynamic> to access fields
-            final Map<String, dynamic> data = ds.data() as Map<String, dynamic>;
-            final currentStatus = data['KitchenorderStatus'] ?? 'Pending'; // Default to 'Pending'
-
-            // Ensure valid status values
-            const List<String> statusOptions = [
-              'Pending', 'Preparing', 'Out for Delivery', 'Completed', 'Cancelled'
-            ];
-            final validCurrentStatus = statusOptions.contains(currentStatus) ? currentStatus : 'Pending';
 
             return Container(
               margin: EdgeInsets.all(8),
@@ -70,7 +92,7 @@ class _VendorsOrdersState extends State<VendorsOrders> {
                 elevation: 5.0,
                 borderRadius: BorderRadius.circular(10),
                 child: Container(
-                  padding: EdgeInsets.all(4),
+                  padding: EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(10),
@@ -79,7 +101,6 @@ class _VendorsOrdersState extends State<VendorsOrders> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('UserId: ${userId}'),
                       Text('Order ID: $orderId', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                       Text('Order Date: ${orderDate.toLocal()}'),
                       Text('Total Amount: ₹$totalAmount', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -93,25 +114,12 @@ class _VendorsOrdersState extends State<VendorsOrders> {
                         );
                       }).toList(),
                       SizedBox(height: 10.0),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('Order Status:', style: TextStyle(fontWeight: FontWeight.bold)),
-                          DropdownButton<String>(
-                            value: validCurrentStatus,
-                            items: statusOptions.map<DropdownMenuItem<String>>((String value) {
-                              return DropdownMenuItem<String>(
-                                value: value,
-                                child: Text(value),
-                              );
-                            }).toList(),
-                            onChanged: (String? newValue) {
-                              if (newValue != null && newValue != validCurrentStatus) {
-                                _updateOrderStatus(orderId, newValue);
-                              }
-                            },
-                          ),
-                        ],
+                      ElevatedButton(
+                        onPressed: () => _reorderItems(items),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orangeAccent,
+                        ),
+                        child: Text("Reorder"),
                       ),
                     ],
                   ),
@@ -128,10 +136,18 @@ class _VendorsOrdersState extends State<VendorsOrders> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Orders'),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (context) => BottomNav()),
+            );
+          },
+        ),
+        title: Text('Order History'),
         centerTitle: true,
       ),
-      body: allOrders(),
+      body: orderHistoryList(),
     );
   }
 }

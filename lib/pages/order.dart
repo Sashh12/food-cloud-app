@@ -1,11 +1,11 @@
-import 'dart:async';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:foodapp/pages/address.dart';
 import 'package:foodapp/pages/bottomnav.dart';
 import 'package:foodapp/service/database.dart';
 import 'package:foodapp/widget/widget_support.dart';
+import 'dart:async';
 
 class Order extends StatefulWidget {
   const Order({super.key});
@@ -18,6 +18,8 @@ class _OrderState extends State<Order> {
   String? id, wallet;
   int total = 0, amount2 = 0;
   Stream? foodStream;
+  String? selectedDeliveryTime;
+  String? selectedAddress;
 
   @override
   void initState() {
@@ -61,6 +63,9 @@ class _OrderState extends State<Order> {
       stream: foodStream,
       builder: (context, AsyncSnapshot snapshot) {
         if (snapshot.hasData) {
+          // Reset total before calculating
+          total = 0;
+
           return ListView.builder(
               padding: EdgeInsets.zero,
               itemCount: snapshot.data.docs.length,
@@ -68,7 +73,7 @@ class _OrderState extends State<Order> {
               scrollDirection: Axis.vertical,
               itemBuilder: (context, index) {
                 DocumentSnapshot ds = snapshot.data.docs[index];
-                total += int.parse(ds["Total"]);
+                total += int.parse(ds["Total"]); // Add each item total
                 return Container(
                   margin: EdgeInsets.only(left: 10.0, right: 10.0, bottom: 10.0),
                   child: Material(
@@ -80,19 +85,17 @@ class _OrderState extends State<Order> {
                       child: Row(
                         children: [
                           Container(
-                            height: 50.0,
-                            width: 40.0,
-                            decoration: BoxDecoration(
-                              border: Border.all(),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Center(child: Text(ds["Quantity"])),
-                          ),
+                              height: 50.0,
+                              width: 40.0,
+                              decoration: BoxDecoration(
+                                border: Border.all(),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Center(child: Text(ds["Quantity"]))),
                           SizedBox(width: 10.0),
                           ClipRRect(
-                            borderRadius: BorderRadius.circular(40),
-                            child: Image.network(ds["Image"], height: 90, width: 90, fit: BoxFit.cover),
-                          ),
+                              borderRadius: BorderRadius.circular(40),
+                              child: Image.network(ds["Image"], height: 90, width: 90, fit: BoxFit.cover)),
                           SizedBox(width: 10.0),
                           Expanded(
                             child: Column(
@@ -144,6 +147,7 @@ class _OrderState extends State<Order> {
           "orderDate": Timestamp.now(),
           "items": cartItems.docs.map((doc) => doc.data()).toList(),
           "address": selectedAddress, // Use the selected address for the order
+          "deliveryTime": selectedDeliveryTime, // Store the selected delivery time
         });
 
         for (var doc in cartItems.docs) {
@@ -173,10 +177,39 @@ class _OrderState extends State<Order> {
 
     if (userId != null) {
       DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
-      List<dynamic> addresses = userDoc.get('addresses') ?? [];
 
-      // Show address selection dialog
-      String? selectedAddress = await showDialog<String>(
+      if (!userDoc.exists) {
+        await FirebaseFirestore.instance.collection('users').doc(userId).set({
+          'addresses': [],
+        });
+        userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+      }
+
+      Map<String, dynamic>? userData = userDoc.data() as Map<String, dynamic>?;
+
+      if (userData == null || !userData.containsKey('addresses')) {
+        await FirebaseFirestore.instance.collection('users').doc(userId).set({
+          'addresses': [],
+        }, SetOptions(merge: true));
+
+        userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+        userData = userDoc.data() as Map<String, dynamic>?; // Refresh data after set
+      }
+
+      List<dynamic> addresses = userData?['addresses'] ?? [];
+
+      // Convert addresses to human-readable format
+      List<String> displayAddresses = addresses.map((address) {
+        if (address is Map) {
+          String humanReadable = address['address'] ?? '';
+          double latitude = address['latitude'] ?? 0.0;
+          double longitude = address['longitude'] ?? 0.0;
+          return '$humanReadable (Lat: $latitude, Lng: $longitude)';
+        }
+        return 'Unknown address'; // Fallback case
+      }).toList();
+
+      String? selectedAddress = await showDialog<String>( // Show addresses in a dialog
         context: context,
         builder: (BuildContext context) {
           return AlertDialog(
@@ -188,12 +221,12 @@ class _OrderState extends State<Order> {
                 children: [
                   Expanded(
                     child: ListView.builder(
-                      itemCount: addresses.length,
+                      itemCount: displayAddresses.length,
                       itemBuilder: (context, index) {
                         return ListTile(
-                          title: Text(addresses[index]),
+                          title: Text(displayAddresses[index]),
                           onTap: () {
-                            Navigator.of(context).pop(addresses[index]); // Return the selected address
+                            Navigator.of(context).pop(displayAddresses[index]);
                           },
                         );
                       },
@@ -201,10 +234,10 @@ class _OrderState extends State<Order> {
                   ),
                   ElevatedButton(
                     onPressed: () {
-                      Navigator.of(context).pop(); // Close the dialog
+                      Navigator.of(context).pop();
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => AddAddressScreen()), // Navigate to Add Address screen
+                        MaterialPageRoute(builder: (context) => AddAddressScreen()),
                       );
                     },
                     child: Text('Add New Address'),
@@ -215,7 +248,7 @@ class _OrderState extends State<Order> {
             actions: [
               TextButton(
                 onPressed: () {
-                  Navigator.of(context).pop(); // Close the dialog
+                  Navigator.of(context).pop();
                 },
                 child: Text('Cancel'),
               ),
@@ -225,14 +258,60 @@ class _OrderState extends State<Order> {
       );
 
       if (selectedAddress != null) {
-        // Proceed to place the order with the selected address
-        await placeOrder(selectedAddress);
+        setState(() {
+          this.selectedAddress = selectedAddress; // Store the selected address
+        });
+        // Show delivery time selection dialog
+        await selectDeliveryTime(selectedAddress);
       }
+    }
+  }
+
+
+  Future<void> selectDeliveryTime(String selectedAddress) async {
+    String? time = await showDialog<String>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Select Delivery Time'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: Text('Now'),
+                onTap: () {
+                  Navigator.of(context).pop('Now');
+                },
+              ),
+              ListTile(
+                title: Text('Select Custom Time'),
+                onTap: () async {
+                  TimeOfDay? pickedTime = await showTimePicker(
+                    context: context,
+                    initialTime: TimeOfDay.now(),
+                  );
+                  if (pickedTime != null) {
+                    String formattedTime = pickedTime.format(context);
+                    Navigator.of(context).pop(formattedTime);
+                  }
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (time != null) {
+      selectedDeliveryTime = time;
+      await placeOrder(selectedAddress);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    bool isCartEmpty = total == 0; // Check if the cart is empty
+
     return Scaffold(
       body: Container(
         padding: EdgeInsets.only(top: 60.0),
@@ -255,28 +334,55 @@ class _OrderState extends State<Order> {
             Divider(),
             Padding(
               padding: EdgeInsets.only(left: 10.0, right: 10.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("Total Price", style: AppWidget.BoldTextFieldStyle()),
-                  Text("\₹ " + total.toString(), style: AppWidget.SemiBoldFieldStyle()),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text("Subtotal", style: AppWidget.BoldTextFieldStyle()),
+                      Text("\₹ $total", style: AppWidget.SemiBoldFieldStyle()),
+                    ],
+                  ),
+                  SizedBox(height: 5.0),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text("Delivery Price", style: AppWidget.normalText()),
+                      Text("\₹ 40", style: AppWidget.SemiBoldFieldStyle()),
+                    ],
+                  ),
+                  Divider(),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text("Total Price", style: AppWidget.BoldTextFieldStyle()),
+                      Text("\₹ ${total + 40}", style: AppWidget.SemiBoldFieldStyle()), // Adding delivery price
+                    ],
+                  ),
                 ],
               ),
             ),
             SizedBox(height: 20.0),
             GestureDetector(
-              onTap: () async {
+              onTap: isCartEmpty ? null : () async {
                 await selectAddress(); // Select an address before placing the order
               },
               child: Container(
                 padding: EdgeInsets.symmetric(vertical: 10.0),
                 width: MediaQuery.of(context).size.width,
                 decoration: BoxDecoration(
-                    color: Colors.black,
+                    color: isCartEmpty ? Colors.grey : Colors.black,
                     borderRadius: BorderRadius.circular(10)),
                 margin: EdgeInsets.only(left: 20.0, right: 20.0, bottom: 20.0),
                 child: Center(
-                    child: Text("Checkout", style: TextStyle(color: Colors.white, fontSize: 20.0, fontWeight: FontWeight.bold))),
+                    child: Text(
+                      "Checkout",
+                      style: TextStyle(
+                          color: isCartEmpty ? Colors.black38 : Colors.white,
+                          fontSize: 20.0,
+                          fontWeight: FontWeight.bold),
+                    )),
               ),
             ),
           ],

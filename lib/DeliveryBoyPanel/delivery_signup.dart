@@ -1,8 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:foodapp/Delivery%20boy/Dashboard.dart';
-import 'package:foodapp/Delivery%20boy/delivery_login.dart';
+import 'package:foodapp/DeliveryBoyPanel/Dashboard.dart';
+import 'package:foodapp/DeliveryBoyPanel/delivery_login.dart';
 import 'package:foodapp/pages/login.dart'; // Import the relevant page to navigate back to login
 
 class DeliveryBoySignUp extends StatefulWidget {

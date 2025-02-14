@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:foodapp/Delivery%20boy/deliveryorders.dart';
+import 'package:foodapp/DeliveryBoyPanel/deliveryorders.dart';
 
 class DeliveryHome extends StatefulWidget {
   @override

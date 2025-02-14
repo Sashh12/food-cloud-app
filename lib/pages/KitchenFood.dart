@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import 'package:foodapp/pages/details2.dart';
 
 class FoodItemsPage extends StatelessWidget {
@@ -71,18 +71,21 @@ class FoodItemsPage extends StatelessWidget {
                         itemCount: itemSnapshot.data!.docs.length,
                         itemBuilder: (context, itemIndex) {
                           DocumentSnapshot foodItemDoc = itemSnapshot.data!.docs[itemIndex];
+
+                          // Assuming ingredients are stored as a list or comma-separated string in Firestore
                           return GestureDetector(
                             onTap: () {
-                              // Handle item tap to navigate to detail page
+                              // Navigate to Detail page and pass the ingredients
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
                                   builder: (context) => Detail(
-                                    detail: foodItemDoc['Detail'],
-                                    name: foodItemDoc['Name'],
-                                    image: foodItemDoc['Image'],
-                                    price: foodItemDoc['Price'],
-                                    kitchenname: foodItemDoc['Kitchenname'],
+                                    detail: foodItemDoc["Detail"] ?? "",
+                                    name: foodItemDoc["Name"] ?? "No Name",
+                                    image: foodItemDoc["Image"] ?? "https://via.placeholder.com/180",
+                                    price: foodItemDoc["Price"] ?? "0",
+                                    kitchenname: foodItemDoc["kitchenname"] ?? "",
+                                    ingredients: foodItemDoc['Ingredients'] ?? "", // Pass ingredients here
                                   ),
                                 ),
                               );

@@ -71,13 +71,15 @@ class _SubscribePageState extends State<SubscribePage> {
 
   Future<void> clearPastWeekSubscriptions() async {
     if (id != null) {
+      // Define the start of the current week
+      DateTime startOfWeek = DateTime.now().subtract(Duration(days: DateTime.now().weekday - 1));
+
+      // Clear past subscriptions from 'subscribe' collection
       QuerySnapshot subDocs = await FirebaseFirestore.instance
           .collection('subscribe')
           .doc(id)
           .collection('days')
           .get();
-
-      DateTime startOfWeek = DateTime.now().subtract(Duration(days: DateTime.now().weekday - 1));
 
       for (var doc in subDocs.docs) {
         var data = doc.data() as Map<String, dynamic>;
@@ -92,6 +94,26 @@ class _SubscribePageState extends State<SubscribePage> {
               .delete();
         }
       }
+
+      // Clear past subscriptions from 'subscription_Orders' collection
+      QuerySnapshot orderDocs = await FirebaseFirestore.instance
+          .collection('subscription_Orders')
+          .where('userId', isEqualTo: id)
+          .get();
+
+      for (var doc in orderDocs.docs) {
+        var data = doc.data() as Map<String, dynamic>;
+        DateTime subscriptionDate = (data['date'] as Timestamp).toDate(); // Ensure proper date parsing
+
+        if (subscriptionDate.isBefore(startOfWeek)) {
+          await FirebaseFirestore.instance
+              .collection('subscription_Orders')
+              .doc(doc.id)
+              .delete();
+        }
+      }
+
+      setState(() {});
     }
   }
 
@@ -200,12 +222,8 @@ class _SubscribePageState extends State<SubscribePage> {
                   Text("Price: ₹$price"),
                 ],
               ),
-              trailing: isPaid
-                  ? Text("Paid", style: TextStyle(color: Colors.green, fontSize: 18.0))
-                  : ElevatedButton(
-                onPressed: () {
-                  placeSubscriptionOrder(day, productName, price, subscriptionId, subscriptionDate, lunchTime, dinnerTime);
-                },
+              trailing: isPaid? Text("Paid", style: TextStyle(color: Colors.green, fontSize: 18.0)) : ElevatedButton(onPressed: () {
+                placeSubscriptionOrder(day, productName, price, subscriptionId, subscriptionDate, lunchTime, dinnerTime);},
                 child: Text("Pay"),
               ),
             ),

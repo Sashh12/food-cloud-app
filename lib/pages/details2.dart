@@ -8,7 +8,16 @@ import 'package:foodapp/widget/widget_support.dart';
 class Detail extends StatefulWidget {
   String image, name, detail, price;
   String kitchenname;
-  Detail({required this.detail, required this.image, required this.name, required this.price, required this.kitchenname});
+  List<dynamic> ingredients; // Ingredients is now a List<dynamic> to handle Firestore response
+
+  Detail({
+    required this.detail,
+    required this.image,
+    required this.name,
+    required this.price,
+    required this.kitchenname,
+    required this.ingredients, // Changed to List<dynamic> for ingredients
+  });
 
   @override
   State<Detail> createState() => _DetailState();
@@ -17,6 +26,7 @@ class Detail extends StatefulWidget {
 class _DetailState extends State<Detail> {
   int a = 1, total = 0;
   String? id;
+  bool showAllIngredients = false; // State to control showing all ingredients
 
   @override
   void initState() {
@@ -194,7 +204,7 @@ class _DetailState extends State<Detail> {
     );
   }
 
-// Function to save the subscription data to Firestore
+  // Function to save the subscription data to Firestore
   Future<void> saveSubscription(String dayOfWeek, DateTime date, TimeOfDay? lunchTime, TimeOfDay? dinnerTime) async {
     if (id != null) {
       // Structure the subscription data
@@ -220,166 +230,224 @@ class _DetailState extends State<Detail> {
 
   @override
   Widget build(BuildContext context) {
+    // Convert ingredients to List<String> if it is List<dynamic>
+    List<String> ingredientsList = widget.ingredients.map((e) => e.toString()).toList();
+
     return Scaffold(
-      body: Container(
-        margin: EdgeInsets.only(top: 50.0, left: 20.0, right: 20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            GestureDetector(
-              onTap: () {
-                Navigator.pop(context);
-              },
-              child: Icon(Icons.arrow_back_ios_new_outlined, color: Colors.black),
-            ),
-            Image.network(
-              widget.image,
-              width: MediaQuery.of(context).size.width,
-              height: MediaQuery.of(context).size.height / 2.5,
-              fit: BoxFit.fill,
-            ),
-            SizedBox(height: 15.0),
-            Row(
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(widget.name, style: AppWidget.FoodNameText()),
-                  ],
-                ),
-                Spacer(),
-                GestureDetector(
-                  onTap: () {
-                    if (a > 1) {
-                      --a;
-                      total = total - int.parse(widget.price);
-                    }
-                    setState(() {});
-                  },
-                  child: Container(
-                    decoration: BoxDecoration(
-                        color: Colors.black,
-                        borderRadius: BorderRadius.circular(8)),
-                    child: Icon(
-                      Icons.remove,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-                SizedBox(width: 20.0),
-                Text(a.toString(), style: AppWidget.SemiBoldFieldStyle()),
-                SizedBox(width: 20.0),
-                GestureDetector(
-                  onTap: () {
-                    if (a < 10) {
-                      ++a;
-                      total = total + int.parse(widget.price);
-                    }
-                    setState(() {});
-                  },
-                  child: Container(
-                    decoration: BoxDecoration(
-                        color: Colors.black,
-                        borderRadius: BorderRadius.circular(8)),
-                    child: Icon(
-                      Icons.add,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 20.0),
-            Text(
-              widget.detail,
-              maxLines: 4,
-              style: AppWidget.LightTextFieldStyle2(),
-            ),
-            SizedBox(height: 30.0),
-            Row(
-              children: [
-                Text("Delivery Time", style: AppWidget.NormalText()),
-                SizedBox(width: 25.0),
-                Icon(Icons.alarm, color: Colors.black54),
-                SizedBox(width: 5.0),
-                Text("30 mins", style: AppWidget.NormalText()),
-              ],
-            ),
-            SizedBox(height: 20.0),
-            Text("Kitchen: ${widget.kitchenname}", // Display the kitchen name
-                style: AppWidget.NormalText()),
-            Spacer(),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 40.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      body: SingleChildScrollView(  // Wrap the content inside SingleChildScrollView
+        child: Container(
+          margin: EdgeInsets.only(top: 50.0, left: 20.0, right: 20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              GestureDetector(
+                onTap: () {
+                  Navigator.pop(context);
+                },
+                child: Icon(Icons.arrow_back_ios_new_outlined, color: Colors.black),
+              ),
+              Image.network(
+                widget.image,
+                width: MediaQuery.of(context).size.width,
+                height: MediaQuery.of(context).size.height / 2.5,
+                fit: BoxFit.fill,
+              ),
+              SizedBox(height: 15.0),
+              Row(
                 children: [
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text("Total Price", style: AppWidget.SemiBoldFieldStyle2()),
-                      Text("\₹ " + total.toString(),
-                          style: AppWidget.SemiBoldFieldStyle()),
+                      Text(
+                        widget.name,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 30.0,
+                          color: Colors.black,
+                        ),
+                      ),
+                      Text(
+                        widget.kitchenname,
+                        style: TextStyle(
+                          fontSize: 18.0,
+                          color: Colors.black,
+                        ),
+                      ),
+                      SizedBox(height: 10.0),
+                      Text(
+                        '₹${widget.price}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18.0,
+                          color: Colors.green,
+                        ),
+                      ),
                     ],
                   ),
+                  Spacer(),
                   Column(
                     children: [
-                      // Add the "Subscribe" button below "Add to Cart"
-                      GestureDetector(
-                        onTap: () {
-                          showSubscribeDialog();
-                        },
-                        child: Container(
-                          width: MediaQuery.of(context).size.width / 2,
-                          padding: EdgeInsets.all(5),
-                          decoration: BoxDecoration(
-                              color: Colors.orangeAccent,
-                              borderRadius: BorderRadius.circular(10)),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text("Subscribe", style: TextStyle( color: Colors.white, fontSize: 16.0, fontFamily: 'Poppins'), ),
-                            ],
-                          ),
+                      IconButton(
+                        onPressed: showSubscribeDialog,
+                        icon: Icon(
+                          Icons.add_circle_outline,
+                          color: Colors.green,
+                          size: 40.0,
                         ),
                       ),
-                      SizedBox(height: 10),
-                      GestureDetector(
-                        onTap: () async {
-                          if (id != null) {
-                            Map<String, dynamic> addFoodtoCart = {
-                              "Name": widget.name,
-                              "Quantity": a.toString(),
-                              "Total": total.toString(),
-                              "Image": widget.image,
-                              "kitchenname": widget.kitchenname,
-                            };
-                            await DatabaseMethods().addFoodtoCart(id!, addFoodtoCart);
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                backgroundColor: Colors.orangeAccent,
-                                content: Text("Food Item Added to Cart",  style: TextStyle(fontSize: 18.0),)));
-                          }
-                        },
-                        child: Container(
-                          width: MediaQuery.of(context).size.width / 2,
-                          padding: EdgeInsets.all(5),
-                          decoration: BoxDecoration( color: Colors.black,
-                              borderRadius: BorderRadius.circular(10)),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text("Add to Cart", style: TextStyle( color: Colors.white, fontSize: 16.0, fontFamily: 'Poppins'),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
+                      Text("Subscribe", style: TextStyle(fontSize: 15.0)),
                     ],
                   ),
                 ],
               ),
-            ),
-          ],
+              SizedBox(height: 10.0),
+              Row(
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      if (a > 1) {
+                        setState(() {
+                          a--;
+                          total -= int.parse(widget.price);
+                        });
+                      }
+                    },
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(Icons.remove, color: Colors.white),
+                    ),
+                  ),
+                  SizedBox(width: 20.0),
+                  Text(a.toString(), style: TextStyle(fontSize: 18.0)),
+                  SizedBox(width: 20.0),
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        a++;
+                        total += int.parse(widget.price);
+                      });
+                    },
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(Icons.add, color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 10.0),
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    showAllIngredients = !showAllIngredients;
+                  });
+                },
+                child: Container(
+                  padding: EdgeInsets.all(10.0),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey),
+                  ),
+                  width: MediaQuery.of(context).size.width, // Ensure the container fits the screen width
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Ingredients",
+                        style: TextStyle(fontSize: 20.0, fontWeight: FontWeight.bold),
+                      ),
+                      SizedBox(height: 3.0),
+                      // Join ingredients by commas and display them in one line
+                      Text(
+                        ingredientsList.take(showAllIngredients ? ingredientsList.length : 3)
+                            .join(', '),
+                        style: TextStyle(fontSize: 16.0),
+                      ),
+                      if (ingredientsList.length > 3)
+                        TextButton(
+                          onPressed: () {
+                            setState(() {
+                              showAllIngredients = !showAllIngredients;
+                            });
+                          },
+                          child: Text(
+                            showAllIngredients ? "Show Less" : "Show All",
+                            style: TextStyle(fontSize: 14.0, color: Colors.blue),
+                          ),
+                        ),
+                    ],
+                  ),
+                )
+              ),
+              SizedBox(height: 10.0),
+              Container(
+                padding: EdgeInsets.symmetric(vertical: 10.0),
+                width: double.infinity,
+                color: Colors.orangeAccent,
+                child: Center(
+                  child: Text("Total: "
+                    "₹$total",
+                    style: TextStyle(color: Colors.white, fontSize: 18.0),
+                  ),
+                ),
+              ),
+              SizedBox(height: 10.0),
+              // Center(
+              //   child: ElevatedButton(
+              //     onPressed: () {
+              //       // Add to cart functionality goes here
+              //     },
+              //     child: Text('Add to Cart', style: TextStyle(color: Colors.white, fontSize: 18.0),),
+              //     style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+              //   ),
+              // ),
+              GestureDetector(
+                onTap: () async {
+                  if (id != null) {
+                    // Create the map with the food item details
+                    Map<String, dynamic> addFoodtoCart = {
+                      "Name": widget.name,
+                      "Quantity": a.toString(),
+                      "Total": total.toString(),
+                      "Image": widget.image,
+                      "kitchenname": widget.kitchenname,
+                    };
+
+                    // Call the method to handle the database operation
+                    await DatabaseMethods().addFoodtoCart(id!, addFoodtoCart);
+
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      backgroundColor: Colors.orangeAccent,
+                      content: Text("Food Item Added to Cart", style: TextStyle(fontSize: 18.0)),
+                    ));
+                  }
+                },
+                child: Center(
+                  child: Container(
+                    width: MediaQuery.of(context).size.width / 3,
+                    padding: EdgeInsets.all(5),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Add to Cart',
+                          style: TextStyle(color: Colors.white, fontSize: 18.0),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

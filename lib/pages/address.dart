@@ -1,6 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 
 class AddAddressScreen extends StatefulWidget {
   @override
@@ -9,44 +12,90 @@ class AddAddressScreen extends StatefulWidget {
 
 class _AddAddressScreenState extends State<AddAddressScreen> {
   final TextEditingController addressController = TextEditingController();
-  List<String> addressList = [];
+  LatLng? selectedLocation;
 
-  // Function to save the address to Firestore
   Future<void> saveAddress() async {
     User? user = FirebaseAuth.instance.currentUser;
     String? userId = user?.uid;
 
     if (userId != null) {
-      // Fetch the current user's document
       DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+      Map<String, dynamic>? userData = userDoc.data() as Map<String, dynamic>?;
 
-      // Ensure "addresses" field exists
-      Map<String, dynamic>? userData = userDoc.data() as Map<String, dynamic>?; // Cast to Map
       if (userData == null || !userData.containsKey('addresses')) {
-        // If userData is null or does not contain 'addresses', initialize it
         await FirebaseFirestore.instance.collection('users').doc(userId).set({
           'addresses': [],
-        }, SetOptions(merge: true)); // Use merge to avoid overwriting existing data
+        }, SetOptions(merge: true));
       }
 
-      // Add the last entered address to Firestore (assuming it's the new one)
+      String newAddress;
       if (addressController.text.isNotEmpty) {
-        String newAddress = addressController.text; // Get the address from the controller
-        await FirebaseFirestore.instance.collection('users').doc(userId).update({
-          'addresses': FieldValue.arrayUnion([newAddress]),
-        });
-        addressList.add(newAddress); // Add to the local list to show in UI
-        addressController.clear(); // Clear the input field
+        newAddress = addressController.text;
+      } else if (selectedLocation != null) {
+        newAddress = await _getAddressFromLatLng(selectedLocation!);
+      } else {
+        newAddress = 'No address available';
       }
 
-      // Navigate back to the previous screen
-      Navigator.pop(context);
+      if (selectedLocation != null) {
+        Map<String, dynamic> addressMap = {
+          'address': newAddress,
+          'latitude': selectedLocation!.latitude,
+          'longitude': selectedLocation!.longitude,
+        };
+
+        await FirebaseFirestore.instance.collection('users').doc(userId).update({
+          'addresses': FieldValue.arrayUnion([addressMap]),
+        });
+
+        setState(() {
+          addressController.clear();
+          selectedLocation = null;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Address saved successfully!')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Please select a location before saving.')),
+        );
+      }
     } else {
-      // If no user is signed in, show an error message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('User not signed in.')),
       );
     }
+  }
+
+  Future<String> _getAddressFromLatLng(LatLng latLng) async {
+    try {
+      List<Placemark> placemarks = await placemarkFromCoordinates(latLng.latitude, latLng.longitude);
+      Placemark placemark = placemarks.first;
+      return '${placemark.locality}, ${placemark.subLocality}, ${placemark.country} ${placemark.postalCode}';
+    } catch (e) {
+      print('Error getting address: $e');
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to fetch address.')));
+      return 'Unknown address';
+    }
+  }
+
+  Future<void> _pickLocation() async {
+    await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return LocationPickerAlert(
+          onLocationSelected: (LatLng userLocation) async {
+            setState(() {
+              selectedLocation = userLocation;
+            });
+            // Autofill the address text field with the selected location's address
+            String autofilledAddress = await _getAddressFromLatLng(userLocation);
+            addressController.text = autofilledAddress;
+          },
+        );
+      },
+    );
   }
 
   @override
@@ -63,43 +112,153 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
               controller: addressController,
               decoration: InputDecoration(labelText: 'Enter Address'),
             ),
-            SizedBox(height: 10.0),
-            ElevatedButton(
-              onPressed: () {
-                setState(() {
-                  // Add the entered address to the list
-                  if (addressController.text.isNotEmpty) {
-                    addressList.add(addressController.text);
-                    addressController.clear(); // Clear the input after adding
-                  }
-                });
-              },
-              child: Text('Add Address'),
+            const SizedBox(height: 18),
+            ElevatedButton.icon(
+              onPressed: _pickLocation,
+              icon: Icon(Icons.location_on),
+              label: const Text('Select Location from Map'),
             ),
             SizedBox(height: 20.0),
-            // Display the list of added addresses
+            if (selectedLocation != null)
+              Text('Selected Location: Lat: ${selectedLocation!.latitude}, Lng: ${selectedLocation!.longitude}'),
+            SizedBox(height: 20.0),
             Expanded(
-              child: ListView.builder(
-                itemCount: addressList.length,
-                itemBuilder: (context, index) {
-                  return ListTile(
-                    title: Text(addressList[index]),
-                    trailing: IconButton(
-                      icon: Icon(Icons.delete),
-                      onPressed: () {
-                        setState(() {
-                          addressList.removeAt(index); // Remove address from list
-                        });
-                      },
-                    ),
+              child: StreamBuilder<DocumentSnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(FirebaseAuth.instance.currentUser?.uid)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return Center(child: Text('Error loading addresses.'));
+                  }
+                  if (!snapshot.hasData || snapshot.data?.data() == null) {
+                    return Center(child: Text('No addresses found.'));
+                  }
+                  List<dynamic> addresses = (snapshot.data!.data() as Map<String, dynamic>)['addresses'] ?? [];
+                  return ListView.builder(
+                    itemCount: addresses.length,
+                    itemBuilder: (context, index) {
+                      Map<String, dynamic> address = addresses[index];
+                      return ListTile(
+                        title: Text(address['address']),
+                        subtitle: Text('Lat: ${address['latitude']}, Lng: ${address['longitude']}'),
+                        trailing: IconButton(
+                          icon: Icon(Icons.delete),
+                          onPressed: () async {
+                            await FirebaseFirestore.instance
+                                .collection('users')
+                                .doc(FirebaseAuth.instance.currentUser?.uid)
+                                .update({
+                              'addresses': FieldValue.arrayRemove([address]),
+                            });
+                          },
+                        ),
+                      );
+                    },
                   );
                 },
               ),
             ),
-            SizedBox(height: 20.0),
             ElevatedButton(
-              onPressed: saveAddress, // Save addresses to Firestore
-              child: Text('Save Addresses'),
+              onPressed: saveAddress,
+              child: Text('Save Address'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class LocationPickerAlert extends StatefulWidget {
+  final Function(LatLng)? onLocationSelected;
+
+  const LocationPickerAlert({Key? key, this.onLocationSelected}) : super(key: key);
+
+  @override
+  LocationPickerAlertState createState() => LocationPickerAlertState();
+}
+
+class LocationPickerAlertState extends State<LocationPickerAlert> {
+  GoogleMapController? mapController;
+  LatLng? _selectedLocation;
+
+  @override
+  void initState() {
+    super.initState();
+    _requestLocationPermission();
+  }
+
+  void _requestLocationPermission() async {
+    LocationPermission permission = await Geolocator.requestPermission();
+    if (permission == LocationPermission.deniedForever ||
+        permission == LocationPermission.denied) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Location permission is required.')),
+      );
+    } else {
+      _getCurrentLocation();
+    }
+  }
+
+  void _getCurrentLocation() async {
+    try {
+      Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      setState(() {
+        _selectedLocation = LatLng(position.latitude, position.longitude);
+        mapController?.animateCamera(CameraUpdate.newLatLng(_selectedLocation!));
+      });
+    } catch (e) {
+      print('Error getting current location: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      content: SizedBox(
+        width: double.maxFinite,
+        height: MediaQuery.of(context).size.height * 0.8,
+        child: Column(
+          children: [
+            Expanded(
+              child: GoogleMap(
+                mapType: MapType.terrain,
+                onMapCreated: (controller) {
+                  mapController = controller;
+                },
+                onTap: (latLng) {
+                  setState(() {
+                    _selectedLocation = latLng;
+                  });
+                },
+                markers: _selectedLocation != null
+                    ? {
+                  Marker(
+                    markerId: const MarkerId('selectedLocation'),
+                    position: _selectedLocation!,
+                  ),
+                }
+                    : {},
+                initialCameraPosition: const CameraPosition(
+                  target: LatLng(0, 0),
+                  zoom: 10,
+                ),
+                myLocationEnabled: true,
+              ),
+            ),
+            FloatingActionButton(
+              onPressed: () {
+                if (_selectedLocation != null) {
+                  Navigator.pop(context);
+                  widget.onLocationSelected?.call(_selectedLocation!);
+                }
+              },
+              child: const Icon(Icons.check),
             ),
           ],
         ),

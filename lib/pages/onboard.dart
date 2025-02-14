@@ -11,14 +11,12 @@ class Onboard extends StatefulWidget {
 }
 
 class _OnboardState extends State<Onboard> {
-
   int currentIndex = 0;
   late PageController _controller;
 
   @override
   void initState() {
     _controller = PageController(initialPage: 0);
-
     super.initState();
   }
 
@@ -30,71 +28,112 @@ class _OnboardState extends State<Onboard> {
 
   @override
   Widget build(BuildContext context) {
+    // Get screen height and width
+    final screenHeight = MediaQuery.of(context).size.height;
+    final screenWidth = MediaQuery.of(context).size.width;
+
     return Scaffold(
-      body: Column(children: [
-        Expanded(
-          child: PageView.builder(
-            controller: _controller,
-            itemCount: contents.length,
-            onPageChanged: (int index) {
-              setState(() {
-                currentIndex = index;
-              });
-            },
-            itemBuilder: (_, i){
-            return Padding(padding: EdgeInsets.only(top: 80.0, left: 20.0, right: 20.0),
-            child: Column(children: [
-              Image.asset(contents[i].image, height: 450, width: MediaQuery.of(context).size.width ,
-                fit: BoxFit.fill,),
-              SizedBox(height: 90.0,),
-              Text(contents[i].title, style: AppWidget.HeaderLineTextFieldStyle(),),
-              SizedBox(height: 20.0,),
-              Text(contents[i].description,style: AppWidget.LightTextFieldStyle(),),
-            ],),
-            );
-          }, ),
-        ),
-        Container(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(
-              contents.length,
-                  (index) => buildDot(index, context),
+      body: Column(
+        children: [
+          Expanded(
+            child: PageView.builder(
+              controller: _controller,
+              itemCount: contents.length,
+              onPageChanged: (int index) {
+                setState(() {
+                  currentIndex = index;
+                });
+              },
+              itemBuilder: (_, i) {
+                return Padding(
+                  padding: EdgeInsets.only(
+                    top: screenHeight * 0.1,  // 10% of screen height for top padding
+                    left: screenWidth * 0.05, // 5% of screen width for left padding
+                    right: screenWidth * 0.05, // 5% of screen width for right padding
+                  ),
+                  child: Column(
+                    children: [
+                      Image.asset(
+                        contents[i].image,
+                        height: screenHeight * 0.45, // 45% of screen height for image
+                        width: screenWidth,
+                        fit: BoxFit.fill,
+                      ),
+                      SizedBox(height: screenHeight * 0.05), // 5% of screen height for spacing
+                      Text(
+                        contents[i].title,
+                        style: AppWidget.HeaderLineTextFieldStyle(),
+                      ),
+                      SizedBox(height: screenHeight * 0.02), // 2% of screen height for spacing
+                      Text(
+                        contents[i].description,
+                        style: AppWidget.LightTextFieldStyle(),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
           ),
-        ),
-        GestureDetector(
-          onTap: () {
-            if (currentIndex == contents.length - 1) {
-              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => SignUp()));
-            }
-            _controller.nextPage(
-                duration: Duration(milliseconds: 100),
-                curve: Curves.bounceIn);
-          },
-          child: Container(
-            decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(20)),
-            height: 60,
-            margin: EdgeInsets.all(40),
-            width: double.infinity,
-            child: Center(
-              child: Text(
-                currentIndex == contents.length - 1?"Start":"Next",
-                style: TextStyle(color: Colors.white, fontSize: 20.0, fontWeight: FontWeight.bold),
+          // Dot Indicators
+          Container(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                contents.length,
+                    (index) => buildDot(index, context),
               ),
             ),
           ),
-        )
-      ],),
+          GestureDetector(
+            onTap: () {
+              if (currentIndex == contents.length - 1) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => SignUp()),
+                );
+              } else {
+                _controller.nextPage(
+                  duration: Duration(milliseconds: 100),
+                  curve: Curves.bounceIn,
+                );
+              }
+            },
+            child: Container(
+              height: screenHeight * 0.08, // 8% of screen height for button height
+              margin: EdgeInsets.all(screenWidth * 0.1), // 10% of screen width for margin
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.red,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Center(
+                child: Text(
+                  currentIndex == contents.length - 1 ? "Start" : "Next",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20.0,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
+
   Container buildDot(int index, BuildContext context) {
     return Container(
       height: 10.0,
       width: currentIndex == index ? 18 : 7,
       margin: EdgeInsets.only(right: 5),
       decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(6), color: Colors.black38),
+        borderRadius: BorderRadius.circular(6),
+        color: Colors.black38,
+      ),
     );
   }
 }
