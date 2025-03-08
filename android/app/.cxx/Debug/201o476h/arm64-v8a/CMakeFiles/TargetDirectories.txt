@@ -1,0 +1,2 @@
+C:/sania/foodApp/android/app/.cxx/Debug/201o476h/arm64-v8a/CMakeFiles/edit_cache.dir
+C:/sania/foodApp/android/app/.cxx/Debug/201o476h/arm64-v8a/CMakeFiles/rebuild_cache.dir

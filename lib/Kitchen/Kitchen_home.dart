@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:foodapp/Kitchen/k_modifyitems.dart';
@@ -102,11 +103,33 @@ class _VendorHomeState extends State<VendorHome> {
                     ),
                     SizedBox(height: 10.0),
                     GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => VendorsOrders()),
-                        );
+                      onTap: () async {
+                        final userId = FirebaseAuth.instance.currentUser?.uid; // Get current user ID
+                        if (userId != null) {
+                          try {
+                            // Fetch kitchen document from the kitchens collection using userId
+                            DocumentSnapshot kitchenDoc = await FirebaseFirestore.instance.collection('kitchens').doc(userId).get();
+
+                            if (kitchenDoc.exists) {
+                              final kitchenName = kitchenDoc['kitchenname']; // Fetch kitchenname from kitchens collection
+                              print('Retrieved kitchen name: $kitchenName');
+
+                              // Navigate to VendorsOrders page, passing the kitchen name
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => VendorsOrders(),
+                                ),
+                              );
+                            } else {
+                              print('ERROR: No kitchen found for userId: $userId');
+                            }
+                          } catch (e) {
+                            print('ERROR: Failed to retrieve kitchen name - $e');
+                          }
+                        } else {
+                          print('ERROR: No user is logged in.');
+                        }
                       },
                       child: Material(
                         elevation: 10.0,

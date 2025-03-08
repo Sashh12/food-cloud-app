@@ -13,21 +13,42 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   Stream<QuerySnapshot>? _userOrderHistoryStream;
+  Stream<QuerySnapshot>? _userCurrentOrderStream;
 
   @override
   void initState() {
     super.initState();
     _fetchOrderHistory();
+    _fetchCurrentOrders();
   }
 
+  // Fetch all past orders (Completed within the last week)
   void _fetchOrderHistory() {
     final userId = _auth.currentUser?.uid;
+    if (userId != null) {
+      DateTime oneWeekAgo = DateTime.now().subtract(Duration(days: 7));
+      _userOrderHistoryStream = _firestore
+          .collection('OrderHistory')
+          .doc(userId)
+          .collection('PastOrders')
+          .orderBy('orderDate', descending: true)
+          .where('kitchenorderStatus', isEqualTo: 'Completed') // Fixed where condition syntax
+          .where('orderDate', isGreaterThanOrEqualTo: oneWeekAgo) // Correct date comparison
+          .snapshots();
+    }
+  }
+
+
+  // Fetch Current Orders (Pending or Preparing)
+  void _fetchCurrentOrders() {
+    final userId = _auth.currentUser ?.uid;
 
     if (userId != null) {
-      _userOrderHistoryStream = _firestore
-          .collection('orderHistory')
-          .doc(userId)
-          .collection('orders')
+      _userCurrentOrderStream = _firestore
+          .collection('Orders')
+          .where('userId', isEqualTo: userId)
+          .where('KitchenorderStatus', whereIn: ['Pending', 'Preparing'])
+          .orderBy('orderDate', descending: true)
           .snapshots();
     } else {
       print('No user is logged in');
@@ -60,7 +81,54 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
     }
   }
 
-  Widget orderHistoryList() {
+  // Cancel Order and Refund Amount
+  Future<void> _cancelOrder(String orderId) async {
+    try {
+      DocumentSnapshot orderDoc =
+      await _firestore.collection('Orders').doc(orderId).get();
+      if (!orderDoc.exists) {
+        print("Order does not exist");
+        return;
+      }
+
+      int totalAmount = orderDoc['totalAmount'];
+      final userId = _auth.currentUser?.uid;
+
+      if (userId != null) {
+        DocumentSnapshot userDoc =
+        await _firestore.collection('users').doc(userId).get();
+        if (userDoc.exists) {
+          int walletAmount = int.parse(userDoc['Wallet']);
+          int updatedWallet = walletAmount + totalAmount;
+
+          await _firestore
+              .collection('users')
+              .doc(userId)
+              .update({"Wallet": updatedWallet.toString()});
+        }
+      }
+
+      await _firestore.collection('Orders').doc(orderId).delete();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text("Order Cancelled and Amount Refunded"),
+          backgroundColor: Colors.redAccent,
+        ));
+      }
+
+      Future.delayed(Duration(seconds: 1), () {
+        if (mounted) {
+          Navigator.pushReplacement(
+              context, MaterialPageRoute(builder: (context) => BottomNav()));
+        }
+      });
+    } catch (e) {
+      print("Error cancelling order: $e");
+    }
+  }
+
+  Widget currentOrdersList() {
     return StreamBuilder<QuerySnapshot>(
       stream: _userOrderHistoryStream,
       builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
@@ -132,22 +200,53 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
     );
   }
 
+  Widget pastOrdersList() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: _userOrderHistoryStream,
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return Center(child: CircularProgressIndicator());
+        }
+
+        var orders = snapshot.data!.docs;
+
+        return ListView.builder(
+          itemCount: orders.length,
+          itemBuilder: (context, index) {
+            var order = orders[index];
+            return ListTile(
+              title: Text("Order ID: ${order.id}"),
+              subtitle: Text("Status: Completed"),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (context) => BottomNav()),
-            );
-          },
+      appBar: AppBar(title: Text('Order History')),
+      body: DefaultTabController(
+        length: 2,
+        child: Column(
+          children: [
+            TabBar(tabs: [
+              Tab(text: "Current Orders"),
+              Tab(text: "Past Orders"),
+            ]),
+            Expanded(
+              child: TabBarView(
+                children: [
+                  currentOrdersList(),
+                  pastOrdersList(),
+                ],
+              ),
+            ),
+          ],
         ),
-        title: Text('Order History'),
-        centerTitle: true,
       ),
-      body: orderHistoryList(),
     );
   }
 }

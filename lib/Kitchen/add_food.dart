@@ -118,7 +118,9 @@ class _AddFoodState extends State<AddFood> {
           "Detail": detailcontroller.text,
           "Ingredients": ingredientcontroller.text.split(','), // Save ingredients as a list
           "kitchenname": currentKitchenname,
+          "FoodCategory": null, // Keep food category as null, only admin can edit
         };
+
 
         String categoryToUse = isAddingCategory
             ? categoryController.text
@@ -140,13 +142,7 @@ class _AddFoodState extends State<AddFood> {
         }
 
         // Save the food item under the selected category for the kitchen
-        await FirebaseFirestore.instance
-            .collection('fooditem')
-            .doc(currentKitchenname) // Use the kitchen name as document ID
-            .collection('categories')
-            .doc(categoryToUse)
-            .collection('Items')
-            .add(addItem);
+
 
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           backgroundColor: Colors.orangeAccent,

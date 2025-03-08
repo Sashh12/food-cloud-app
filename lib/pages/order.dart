@@ -111,6 +111,18 @@ class _OrderState extends State<Order> {
                               ],
                             ),
                           ),
+                          IconButton(
+                            icon: Icon(Icons.cancel, color: Colors.black),
+                            onPressed: () async {
+                              await FirebaseFirestore.instance
+                                  .collection("users")
+                                  .doc(id)
+                                  .collection("Cart")
+                                  .doc(ds.id)
+                                  .delete();
+                              setState(() {});
+                            },
+                          ),
                         ],
                       ),
                     ),
@@ -125,31 +137,118 @@ class _OrderState extends State<Order> {
   }
 
   Future<void> placeOrder(String selectedAddress) async {
+    print("🔍 placeOrder() Function Called");
+
     if (id != null) {
+      print("✅ User ID Found: $id");
+
       if (wallet != null) {
-        int amount = int.parse(wallet!) - amount2;
+        print("💰 Wallet Amount: $wallet");
+
+        int walletAmount = int.parse(wallet!);
+        int totalAmount = total + 40; // Delivery charge included
+        print("💵 Total Amount with Delivery: $totalAmount");
+
+        if (walletAmount < totalAmount) {
+          print("Insufficient Balance");
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text("Insufficient balance! Please top up your wallet."),
+            duration: Duration(seconds: 2),
+          ));
+          return;
+        }
+
+        // Deduct Wallet Amount
+        int remainingAmount = walletAmount - totalAmount;
+        print("💳 Deducting Wallet... Remaining Amount: $remainingAmount");
 
         await FirebaseFirestore.instance
-            .collection('users')
+            .collection("users")
             .doc(id)
-            .update({"Wallet": amount.toString()});
+            .update({"Wallet": remainingAmount.toString()});
+        print("✅ Wallet Deducted Successfully");
 
+        // Fetch Cart Items
         var cartItems = await FirebaseFirestore.instance
             .collection("users")
             .doc(id)
             .collection("Cart")
             .get();
 
-        String orderId = FirebaseFirestore.instance.collection("orders").doc().id;
-        await FirebaseFirestore.instance.collection("orders").doc(orderId).set({
+        if (cartItems.docs.isEmpty) {
+          print("Cart is Empty");
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text("Your cart is empty!"),
+          ));
+          return;
+        }
+
+        print("🛒 Cart Items Found: ${cartItems.docs.length}");
+
+        // Generate Order ID
+        String orderId = FirebaseFirestore.instance.collection("Orders").doc().id;
+        print("Generated Order ID: $orderId");
+
+        // Place Order
+        await FirebaseFirestore.instance.collection("Orders").doc(orderId).set({
           "userId": id,
-          "totalAmount": total,
+          "totalAmount": totalAmount,
           "orderDate": Timestamp.now(),
           "items": cartItems.docs.map((doc) => doc.data()).toList(),
-          "address": selectedAddress, // Use the selected address for the order
-          "deliveryTime": selectedDeliveryTime, // Store the selected delivery time
+          "address": selectedAddress,
+          "deliveryTime": selectedDeliveryTime ?? "Not Available",
+          "KitchenorderStatus": "Pending",
         });
 
+        print("✅ Order Placed Successfully in Orders Collection");
+
+        // 🔥 Loop to Continuously Check Order Status
+        bool isCompleted = false;
+
+        while (!isCompleted) {
+          var orderSnap = await FirebaseFirestore.instance
+              .collection("Orders")
+              .doc(orderId)
+              .get();
+
+          if (orderSnap.exists) {
+            print("🔍 Checking Order Status: ${orderSnap["KitchenorderStatus"]}");
+
+            if (orderSnap["KitchenorderStatus"] == "Completed") {
+              print("✅ Order Completed! Moving to OrderHistory");
+
+              // Move to OrderHistory
+              await FirebaseFirestore.instance
+                  .collection("OrderHistory")
+                  .doc(id)
+                  .collection("PastOrders")
+                  .doc(orderId)
+                  .set({
+                "userId": id,
+                "totalAmount": totalAmount,
+                "orderDate": orderSnap["orderDate"],
+                "items": orderSnap["items"],
+                "address": selectedAddress,
+                "deliveryTime": orderSnap["deliveryTime"],
+                "KitchenorderStatus": "Completed",
+              });
+
+              print("🚚 Order Moved to OrderHistory");
+
+              // Delete Order from Orders Collection
+              await FirebaseFirestore.instance.collection("Orders").doc(orderId).delete();
+              print("🗑️ Order Deleted from Orders Collection");
+
+              isCompleted = true;
+            }
+          }
+
+          // Wait 2 seconds before checking again 🔄
+          await Future.delayed(Duration(seconds: 2));
+        }
+
+        // Clear Cart
+        print("🧹 Clearing Cart Items...");
         for (var doc in cartItems.docs) {
           await FirebaseFirestore.instance
               .collection("users")
@@ -157,7 +256,10 @@ class _OrderState extends State<Order> {
               .collection("Cart")
               .doc(doc.id)
               .delete();
+          print("🛒 Cart Item Deleted: ${doc.id}");
         }
+
+        print("✅ Cart Cleared Successfully");
 
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text("Order placed successfully!"),
@@ -166,10 +268,16 @@ class _OrderState extends State<Order> {
 
         await Future.delayed(Duration(seconds: 2));
 
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => BottomNav()));
+        Navigator.pushReplacement(
+            context, MaterialPageRoute(builder: (context) => BottomNav()));
+
+        print("🎯 Order Process Completed");
       }
     }
   }
+
+
+
 
   Future<void> selectAddress() async {
     User? user = FirebaseAuth.instance.currentUser;
@@ -363,7 +471,7 @@ class _OrderState extends State<Order> {
                 ],
               ),
             ),
-            SizedBox(height: 20.0),
+            SizedBox(height: 10.0),
             GestureDetector(
               onTap: isCartEmpty ? null : () async {
                 await selectAddress(); // Select an address before placing the order
@@ -374,7 +482,7 @@ class _OrderState extends State<Order> {
                 decoration: BoxDecoration(
                     color: isCartEmpty ? Colors.grey : Colors.black,
                     borderRadius: BorderRadius.circular(10)),
-                margin: EdgeInsets.only(left: 20.0, right: 20.0, bottom: 20.0),
+                margin: EdgeInsets.only(left: 20.0, right: 20.0, bottom: 8.0),
                 child: Center(
                     child: Text(
                       "Checkout",

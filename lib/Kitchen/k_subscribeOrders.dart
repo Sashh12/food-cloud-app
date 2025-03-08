@@ -10,17 +10,43 @@ class VendorsSubscriptionOrders extends StatefulWidget {
 class _VendorsSubscriptionOrdersState extends State<VendorsSubscriptionOrders> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final String? userId = FirebaseAuth.instance.currentUser?.uid; // Get the current user ID
+  String? loggedInKitchenName;
   Stream<QuerySnapshot>? _subscriptionsStream;
 
   @override
   void initState() {
     super.initState();
-    // Check if user ID is not null before accessing Firestore
     if (userId != null) {
-      _subscriptionsStream = _firestore
-          .collection("subscription_Orders") // Access the subscription orders collection
-          .snapshots();
+      _fetchKitchenName(); // Fetch the kitchen name when the page loads
     }
+  }
+
+  // Fetch the kitchen name using the vendor's UID from Firebase Authentication
+  Future<void> _fetchKitchenName() async {
+    DocumentSnapshot kitchenDoc = await _firestore
+        .collection('kitchens')
+        .doc(userId)
+        .get();
+
+    if (kitchenDoc.exists) {
+      setState(() {
+        loggedInKitchenName = kitchenDoc['kitchenname']; // Save the kitchen name
+      });
+
+      // Now that we have the kitchen name, we can fetch the subscription orders for this kitchen
+      _fetchSubscriptionOrders();
+    }
+  }
+
+  // Fetch subscription orders where the kitchenName matches the logged-in kitchen name
+  Future<void> _fetchSubscriptionOrders() async {
+    if (loggedInKitchenName == null) return;
+
+    _subscriptionsStream = _firestore
+        .collection('subscription_Orders')
+        .where('kitchenName', isEqualTo: loggedInKitchenName) // Filter orders by kitchen name
+        .snapshots();
+    setState(() {});
   }
 
   Future<void> _updateSubscriptionStatus(String subscribeOrderId, String newStatus) async {

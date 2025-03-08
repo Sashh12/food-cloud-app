@@ -140,7 +140,7 @@ class _LogInState extends State<LogIn> {
                               child: Column(
                                 children: [
                                   SizedBox(height: 30.0),
-                                  Text("Login", style: AppWidget.HeaderLineTextFieldStyle()),
+                                  Text("Customer Login", style: AppWidget.HeaderLineTextFieldStyle()),
                                   SizedBox(height: 30.0),
                                   TextFormField(
                                     controller: usermailcontroller,

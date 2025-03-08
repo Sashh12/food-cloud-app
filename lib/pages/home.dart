@@ -134,7 +134,9 @@ class _HomeState extends State<Home> {
                   image: itemData["Image"] ?? "https://via.placeholder.com/180",
                   price: itemData["Price"] ?? "0",
                   kitchenname: itemData["kitchenname"] ?? "",
-                  ingredients: itemData["Ingredients"] ?? "", // Pass ingredients here
+                  ingredients: itemData["Ingredients"] ?? "",
+                  FoodCategory: itemData["FoodCategory"] ?? "",
+
                 ),
               ),
             );

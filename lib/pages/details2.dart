@@ -6,8 +6,7 @@ import 'package:foodapp/service/database.dart';
 import 'package:foodapp/widget/widget_support.dart';
 
 class Detail extends StatefulWidget {
-  String image, name, detail, price;
-  String kitchenname;
+  String image, name, detail, price, kitchenname, FoodCategory;
   List<dynamic> ingredients; // Ingredients is now a List<dynamic> to handle Firestore response
 
   Detail({
@@ -16,7 +15,8 @@ class Detail extends StatefulWidget {
     required this.name,
     required this.price,
     required this.kitchenname,
-    required this.ingredients, // Changed to List<dynamic> for ingredients
+    required this.ingredients,
+    required this.FoodCategory,// Changed to List<dynamic> for ingredients
   });
 
   @override
@@ -63,7 +63,6 @@ class _DetailState extends State<Detail> {
     return selectedDate;
   }
 
-  // Function to show the subscribe dialog
   Future<void> showSubscribeDialog() async {
     List<String> daysOfWeek = [
       'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
@@ -85,7 +84,6 @@ class _DetailState extends State<Detail> {
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Display the subscription week range
                 Text(
                     "Subscription Week: ${DateFormat('dd/MM/yy').format(DateTime.now().subtract(Duration(days: DateTime.now().weekday - 1)))} - "
                         "${DateFormat('dd/MM/yy').format(DateTime.now().add(Duration(days: 7 - DateTime.now().weekday)))}"
@@ -97,16 +95,16 @@ class _DetailState extends State<Detail> {
                   onChanged: (String? newValue) {
                     setState(() {
                       selectedDay = newValue!;
-                      selectedDate = getDateForDay(newValue); // Get the selected date
+                      selectedDate = getDateForDay(newValue);
                     });
                   },
                   items: daysOfWeek.map((String day) {
                     DateTime dayDate = getDateForDay(day);
-                    bool isDisabled = dayDate.isBefore(now); // Disable past days
+                    bool isDisabled = dayDate.isBefore(now);
 
                     return DropdownMenuItem<String>(
                       value: day,
-                      enabled: !isDisabled, // Disable if it's in the past
+                      enabled: !isDisabled,
                       child: Text(
                         "$day - ${DateFormat('dd/MM/yy').format(dayDate)}",
                         style: isDisabled ? TextStyle(color: Colors.grey) : null,
@@ -121,16 +119,44 @@ class _DetailState extends State<Detail> {
                     Text('Lunch Time: '),
                     TextButton(
                       onPressed: () async {
+                        TimeOfDay initialTime = selectedDay == DateFormat('EEEE').format(now)
+                            ? TimeOfDay(hour: now.hour, minute: now.minute)
+                            : TimeOfDay.now();
+
                         TimeOfDay? pickedTime = await showTimePicker(
                           context: context,
-                          initialTime: selectedLunchTime ?? TimeOfDay.now(),
+                          initialTime: initialTime,
                         );
+
                         if (pickedTime != null) {
-                          setState(() {
-                            // Deselect dinner time if lunch is selected
-                            selectedDinnerTime = null;
-                            selectedLunchTime = pickedTime;
-                          });
+                          // If it's today, check if the picked time is after the current time
+                          if (selectedDay == DateFormat('EEEE').format(now)) {
+                            final nowInMinutes = now.hour * 60 + now.minute;
+                            final pickedTimeInMinutes = pickedTime.hour * 60 + pickedTime.minute;
+
+                            if (pickedTimeInMinutes <= nowInMinutes) {
+                              // Show a warning if the picked time is before or equal to the current time
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text("Please select a time later than the current time."),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            } else {
+                              setState(() {
+                                // Deselect dinner time if lunch is selected
+                                selectedDinnerTime = null;
+                                selectedLunchTime = pickedTime;
+                              });
+                            }
+                          } else {
+                            // For future days, allow any time to be selected
+                            setState(() {
+                              // Deselect dinner time if lunch is selected
+                              selectedDinnerTime = null;
+                              selectedLunchTime = pickedTime;
+                            });
+                          }
                         }
                       },
                       child: Text(selectedLunchTime == null
@@ -145,16 +171,44 @@ class _DetailState extends State<Detail> {
                     Text('Dinner Time: '),
                     TextButton(
                       onPressed: () async {
+                        TimeOfDay initialTime = selectedDay == DateFormat('EEEE').format(now)
+                            ? TimeOfDay(hour: now.hour, minute: now.minute)
+                            : TimeOfDay.now();
+
                         TimeOfDay? pickedTime = await showTimePicker(
                           context: context,
-                          initialTime: selectedDinnerTime ?? TimeOfDay.now(),
+                          initialTime: initialTime,
                         );
+
                         if (pickedTime != null) {
-                          setState(() {
-                            // Deselect lunch time if dinner is selected
-                            selectedLunchTime = null;
-                            selectedDinnerTime = pickedTime;
-                          });
+                          // If it's today, check if the picked time is after the current time
+                          if (selectedDay == DateFormat('EEEE').format(now)) {
+                            final nowInMinutes = now.hour * 60 + now.minute;
+                            final pickedTimeInMinutes = pickedTime.hour * 60 + pickedTime.minute;
+
+                            if (pickedTimeInMinutes <= nowInMinutes) {
+                              // Show a warning if the picked time is before or equal to the current time
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text("Please select a time later than the current time."),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            } else {
+                              setState(() {
+                                // Deselect lunch time if dinner is selected
+                                selectedLunchTime = null;
+                                selectedDinnerTime = pickedTime;
+                              });
+                            }
+                          } else {
+                            // For future days, allow any time to be selected
+                            setState(() {
+                              // Deselect lunch time if dinner is selected
+                              selectedLunchTime = null;
+                              selectedDinnerTime = pickedTime;
+                            });
+                          }
                         }
                       },
                       child: Text(selectedDinnerTime == null
@@ -175,7 +229,7 @@ class _DetailState extends State<Detail> {
               TextButton(
                 onPressed: () async {
                   // Check that at least one meal time is selected
-                  if (selectedDay.isNotEmpty && (selectedLunchTime!= null || selectedDinnerTime != null)) {
+                  if (selectedDay.isNotEmpty && (selectedLunchTime != null || selectedDinnerTime != null)) {
                     // Save the subscription with the selected day, date, and times
                     await saveSubscription(
                       selectedDay,
@@ -258,8 +312,7 @@ class _DetailState extends State<Detail> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        widget.name,
+                      Text(widget.name,
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 30.0,
@@ -279,6 +332,15 @@ class _DetailState extends State<Detail> {
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 18.0,
+                          color: Colors.green,
+                        ),
+                      ),
+                      SizedBox(height: 10.0),
+                      Text(
+                        widget.FoodCategory,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15.0,
                           color: Colors.green,
                         ),
                       ),
@@ -356,12 +418,10 @@ class _DetailState extends State<Detail> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        "Ingredients",
+                      Text("Ingredients",
                         style: TextStyle(fontSize: 20.0, fontWeight: FontWeight.bold),
                       ),
                       SizedBox(height: 3.0),
-                      // Join ingredients by commas and display them in one line
                       Text(
                         ingredientsList.take(showAllIngredients ? ingredientsList.length : 3)
                             .join(', '),
@@ -396,15 +456,6 @@ class _DetailState extends State<Detail> {
                 ),
               ),
               SizedBox(height: 10.0),
-              // Center(
-              //   child: ElevatedButton(
-              //     onPressed: () {
-              //       // Add to cart functionality goes here
-              //     },
-              //     child: Text('Add to Cart', style: TextStyle(color: Colors.white, fontSize: 18.0),),
-              //     style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
-              //   ),
-              // ),
               GestureDetector(
                 onTap: () async {
                   if (id != null) {
@@ -415,6 +466,7 @@ class _DetailState extends State<Detail> {
                       "Total": total.toString(),
                       "Image": widget.image,
                       "kitchenname": widget.kitchenname,
+                      "FoodCategory": widget.FoodCategory,
                     };
 
                     // Call the method to handle the database operation

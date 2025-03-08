@@ -85,7 +85,8 @@ class FoodItemsPage extends StatelessWidget {
                                     image: foodItemDoc["Image"] ?? "https://via.placeholder.com/180",
                                     price: foodItemDoc["Price"] ?? "0",
                                     kitchenname: foodItemDoc["kitchenname"] ?? "",
-                                    ingredients: foodItemDoc['Ingredients'] ?? "", // Pass ingredients here
+                                    ingredients: foodItemDoc['Ingredients'] ?? "",
+                                    FoodCategory: foodItemDoc["FoodCategory"] ?? "",
                                   ),
                                 ),
                               );
