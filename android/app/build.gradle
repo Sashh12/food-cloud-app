@@ -3,17 +3,19 @@ plugins {
     id 'com.google.gms.google-services'
     id "kotlin-android"
     id "dev.flutter.flutter-gradle-plugin"
+
 }
 
 android {
     namespace = "com.example.foodapp"
-//    compileSdk = flutter.compileSdkVersion
+    compileSdk = flutter.compileSdkVersion
     compileSdk 35
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+
     }
 
     kotlinOptions {
@@ -47,11 +49,11 @@ flutter {
 
 dependencies {
     // Import the Firebase BoM
-    implementation(platform("com.google.firebase:firebase-bom:33.5.1"))
+    implementation platform('com.google.firebase:firebase-bom:33.10.0')
     implementation 'com.google.android.gms:play-services-location:21.0.1'
     implementation("com.google.android.gms:play-services-maps:19.0.0")
     // Add the dependency for the Firebase SDK for Google Analytics
-    implementation("com.google.firebase:firebase-analytics")
+    implementation 'com.google.firebase:firebase-analytics'
     // Use the Kotlin standard library
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
 

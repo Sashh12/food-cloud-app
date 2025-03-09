@@ -27,17 +27,16 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
     final userId = _auth.currentUser?.uid;
     if (userId != null) {
       DateTime oneWeekAgo = DateTime.now().subtract(Duration(days: 7));
+
       _userOrderHistoryStream = _firestore
-          .collection('OrderHistory')
-          .doc(userId)
-          .collection('PastOrders')
-          .orderBy('orderDate', descending: true)
-          .where('kitchenorderStatus', isEqualTo: 'Completed') // Fixed where condition syntax
-          .where('orderDate', isGreaterThanOrEqualTo: oneWeekAgo) // Correct date comparison
+          .collection('order_history')
+          .where('userId', isEqualTo: userId) // Filter orders for the current user
+          .where('KitchenorderStatus', isEqualTo: 'Completed') // Fetch only completed orders
+          .where('orderDate', isGreaterThanOrEqualTo: Timestamp.fromDate(oneWeekAgo)) // Ensure orderDate is within last week
+          .orderBy('orderDate', descending: true) // Sort orders by latest first
           .snapshots();
     }
   }
-
 
   // Fetch Current Orders (Pending or Preparing)
   void _fetchCurrentOrders() {
@@ -130,7 +129,7 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
 
   Widget currentOrdersList() {
     return StreamBuilder<QuerySnapshot>(
-      stream: _userOrderHistoryStream,
+      stream: _userCurrentOrderStream,
       builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(child: CircularProgressIndicator());
@@ -187,8 +186,17 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.orangeAccent,
                         ),
-                        child: Text("Reorder"),
+                        child: Text("Reorder",style: TextStyle(color: Colors.black)),
                       ),
+                      ElevatedButton(
+                        onPressed: () => _cancelOrder(orderId),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.redAccent,
+                        ),
+                        child: Text("Cancel Order", style: TextStyle(color: Colors.white)),
+                      ),
+
+
                     ],
                   ),
                 ),
@@ -204,19 +212,65 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
     return StreamBuilder<QuerySnapshot>(
       stream: _userOrderHistoryStream,
       builder: (context, snapshot) {
-        if (!snapshot.hasData) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(child: CircularProgressIndicator());
+        }
+
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return Center(child: Text('No order history available'));
         }
 
         var orders = snapshot.data!.docs;
 
         return ListView.builder(
-          itemCount: orders.length,
+          padding: EdgeInsets.zero,
+          itemCount: snapshot.data!.docs.length,
           itemBuilder: (context, index) {
-            var order = orders[index];
-            return ListTile(
-              title: Text("Order ID: ${order.id}"),
-              subtitle: Text("Status: Completed"),
+            DocumentSnapshot ds = snapshot.data!.docs[index];
+            final orderId = ds.id;
+            final orderDate = (ds['orderDate'] as Timestamp).toDate();
+            final totalAmount = ds['totalAmount'];
+            final items = ds['items'] as List<dynamic>;
+
+            return Container(
+              margin: EdgeInsets.all(8),
+              child: Material(
+                elevation: 5.0,
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  padding: EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.black54, width: 2),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Order ID: $orderId', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      Text('Order Date: ${orderDate.toLocal()}'),
+                      Text('Total Amount: ₹$totalAmount', style: TextStyle(fontWeight: FontWeight.bold)),
+                      SizedBox(height: 10.0),
+                      Text('Items:', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ...items.map((item) {
+                        return ListTile(
+                          leading: Image.network(item['Image'], width: 50, height: 50, fit: BoxFit.cover),
+                          title: Text(item['Name']),
+                          subtitle: Text('Quantity: ${item['Quantity']}, Total: ₹${item['Total']}'),
+                        );
+                      }).toList(),
+                      SizedBox(height: 10.0),
+                      ElevatedButton(
+                        onPressed: () => _reorderItems(items),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orangeAccent,
+                        ),
+                        child: Text("Reorder", ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             );
           },
         );
@@ -227,7 +281,14 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Order History')),
+      appBar: AppBar(title: Text('Order History'),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back), // Back arrow icon
+          onPressed: () {
+            Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => BottomNav())); // Navigates one page back
+          },
+        ),
+      ),
       body: DefaultTabController(
         length: 2,
         child: Column(

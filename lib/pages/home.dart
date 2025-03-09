@@ -32,7 +32,7 @@ class _HomeState extends State<Home> {
         DocumentSnapshot snapshot = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
         if (snapshot.exists) {
           Map<String, dynamic>? data = snapshot.data() as Map<String, dynamic>?;
-          if (data != null) {
+          if (data != null && mounted) {  // Check if mounted before setState
             setState(() {
               name = data['Name'];
             });
@@ -49,50 +49,34 @@ class _HomeState extends State<Home> {
       List<Map<String, dynamic>> allItems = [];
       bool dataFound = false; // Flag to track if any data is found
 
-      // Query the 'kitchens' collection to get all kitchen documents
       QuerySnapshot kitchenSnapshot = await FirebaseFirestore.instance.collection('kitchens').get();
 
       if (kitchenSnapshot.docs.isEmpty) {
         print("No kitchens found.");
       } else {
-        // Iterate through each kitchen
         for (var kitchenDoc in kitchenSnapshot.docs) {
-          String kitchenName = kitchenDoc["kitchenname"]; // Assuming 'kitchenname' field exists
-
+          String kitchenName = kitchenDoc["kitchenname"];
           if (kitchenName != null && kitchenName.isNotEmpty) {
-            // Query the 'categories' collection under each kitchen
             QuerySnapshot categorySnapshot = await FirebaseFirestore.instance
                 .collection('fooditem')
-                .doc(kitchenName) // Use the dynamic kitchenName
+                .doc(kitchenName)
                 .collection('categories')
                 .get();
 
-            if (categorySnapshot.docs.isEmpty) {
-              print("No categories found in kitchen: $kitchenName");
-            } else {
-              // Iterate through all categories
-              for (var categoryDoc in categorySnapshot.docs) {
-                String categoryName = categoryDoc.id;
+            for (var categoryDoc in categorySnapshot.docs) {
+              String categoryName = categoryDoc.id;
+              QuerySnapshot itemSnapshot = await FirebaseFirestore.instance
+                  .collection('fooditem')
+                  .doc(kitchenName)
+                  .collection('categories')
+                  .doc(categoryName)
+                  .collection('Items')
+                  .get();
 
-                // Query the items under each category
-                QuerySnapshot itemSnapshot = await FirebaseFirestore.instance
-                    .collection('fooditem')
-                    .doc(kitchenName)
-                    .collection('categories')
-                    .doc(categoryName)
-                    .collection('Items')
-                    .get();
-
-                if (itemSnapshot.docs.isEmpty) {
-                  print("No items found in category: $categoryName (Kitchen: $kitchenName)");
-                } else {
-                  // Add each item to the list
-                  for (var itemDoc in itemSnapshot.docs) {
-                    Map<String, dynamic> itemData = itemDoc.data() as Map<String, dynamic>;
-                    allItems.add(itemData);
-                    dataFound = true; // Set flag to true if at least one item is found
-                  }
-                }
+              for (var itemDoc in itemSnapshot.docs) {
+                Map<String, dynamic> itemData = itemDoc.data() as Map<String, dynamic>;
+                allItems.add(itemData);
+                dataFound = true;
               }
             }
           }
@@ -103,16 +87,15 @@ class _HomeState extends State<Home> {
         print("No items found in the entire database.");
       }
 
-      // Update the products list with all items
-      setState(() {
-        products = allItems;
-      });
+      if (mounted) { // Check before calling setState
+        setState(() {
+          products = allItems;
+        });
+      }
     } catch (e) {
       print("Error loading data: $e");
     }
   }
-
-
 
   // Display all items fetched from Firestore
   Widget allItems() {

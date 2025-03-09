@@ -26,12 +26,16 @@ class _OrderState extends State<Order> {
     super.initState();
     ontheload();
     startTimer();
+    print("🚀 Starting Order Status Listener...");
+    startOrderStatusListener();
   }
 
   void startTimer() {
     Timer(Duration(seconds: 2), () {
-      amount2 = total;
-      setState(() {});
+      if (!mounted) return; // Prevent setState after dispose
+      setState(() {
+        amount2 = total;
+      });
     });
   }
 
@@ -139,144 +143,155 @@ class _OrderState extends State<Order> {
   Future<void> placeOrder(String selectedAddress) async {
     print("🔍 placeOrder() Function Called");
 
-    if (id != null) {
+    // Check if the widget is still mounted
+    if (!mounted) return;
+
+    if (id != null && wallet != null) {
       print("✅ User ID Found: $id");
+      print("💰 Wallet Amount: $wallet");
 
-      if (wallet != null) {
-        print("💰 Wallet Amount: $wallet");
+      int walletAmount = int.parse(wallet!);
+      int totalAmount = total + 40; // Delivery charge included
+      print("💵 Total Amount with Delivery: $totalAmount");
 
-        int walletAmount = int.parse(wallet!);
-        int totalAmount = total + 40; // Delivery charge included
-        print("💵 Total Amount with Delivery: $totalAmount");
+      // Check if the wallet has sufficient balance
+      if (walletAmount < totalAmount) {
+        print("Insufficient Balance");
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text("Insufficient balance! Please top up your wallet."),
+          duration: Duration(seconds: 2),
+        ));
+        return;
+      }
 
-        if (walletAmount < totalAmount) {
-          print("Insufficient Balance");
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text("Insufficient balance! Please top up your wallet."),
-            duration: Duration(seconds: 2),
-          ));
-          return;
-        }
+      // Deduct Wallet Amount
+      int remainingAmount = walletAmount - totalAmount;
+      print("💳 Deducting Wallet... Remaining Amount: $remainingAmount");
 
-        // Deduct Wallet Amount
-        int remainingAmount = walletAmount - totalAmount;
-        print("💳 Deducting Wallet... Remaining Amount: $remainingAmount");
+      await FirebaseFirestore.instance
+          .collection("users")
+          .doc(id)
+          .update({"Wallet": remainingAmount.toString()});
+      print("✅ Wallet Deducted Successfully");
 
+      // Fetch Cart Items
+      var cartItems = await FirebaseFirestore.instance
+          .collection("users")
+          .doc(id)
+          .collection("Cart")
+          .get();
+
+      if (cartItems.docs.isEmpty) {
+        print("Cart is Empty");
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text("Your cart is empty!"),
+        ));
+        return;
+      }
+
+      print("🛒 Cart Items Found: ${cartItems.docs.length}");
+
+      // Generate Order ID
+      String orderId = FirebaseFirestore.instance.collection("Orders").doc().id;
+      print("Generated Order ID: $orderId");
+
+      // Place Order
+      await FirebaseFirestore.instance.collection("Orders").doc(orderId).set({
+        "userId": id,
+        "totalAmount": totalAmount,
+        "orderDate": Timestamp.now(),
+        "items": cartItems.docs.map((doc) => doc.data()).toList(),
+        "address": selectedAddress,
+        "deliveryTime": selectedDeliveryTime ?? "Not Available",
+        "KitchenorderStatus": "Pending",
+      });
+
+      print("✅ Order Placed Successfully in Orders Collection");
+
+      // Clear Cart
+      print("🧹 Clearing Cart Items...");
+      for (var doc in cartItems.docs) {
         await FirebaseFirestore.instance
             .collection("users")
             .doc(id)
-            .update({"Wallet": remainingAmount.toString()});
-        print("✅ Wallet Deducted Successfully");
-
-        // Fetch Cart Items
-        var cartItems = await FirebaseFirestore.instance
-            .collection("users")
-            .doc(id)
             .collection("Cart")
-            .get();
-
-        if (cartItems.docs.isEmpty) {
-          print("Cart is Empty");
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text("Your cart is empty!"),
-          ));
-          return;
-        }
-
-        print("🛒 Cart Items Found: ${cartItems.docs.length}");
-
-        // Generate Order ID
-        String orderId = FirebaseFirestore.instance.collection("Orders").doc().id;
-        print("Generated Order ID: $orderId");
-
-        // Place Order
-        await FirebaseFirestore.instance.collection("Orders").doc(orderId).set({
-          "userId": id,
-          "totalAmount": totalAmount,
-          "orderDate": Timestamp.now(),
-          "items": cartItems.docs.map((doc) => doc.data()).toList(),
-          "address": selectedAddress,
-          "deliveryTime": selectedDeliveryTime ?? "Not Available",
-          "KitchenorderStatus": "Pending",
-        });
-
-        print("✅ Order Placed Successfully in Orders Collection");
-
-        // 🔥 Loop to Continuously Check Order Status
-        bool isCompleted = false;
-
-        while (!isCompleted) {
-          var orderSnap = await FirebaseFirestore.instance
-              .collection("Orders")
-              .doc(orderId)
-              .get();
-
-          if (orderSnap.exists) {
-            print("🔍 Checking Order Status: ${orderSnap["KitchenorderStatus"]}");
-
-            if (orderSnap["KitchenorderStatus"] == "Completed") {
-              print("✅ Order Completed! Moving to OrderHistory");
-
-              // Move to OrderHistory
-              await FirebaseFirestore.instance
-                  .collection("OrderHistory")
-                  .doc(id)
-                  .collection("PastOrders")
-                  .doc(orderId)
-                  .set({
-                "userId": id,
-                "totalAmount": totalAmount,
-                "orderDate": orderSnap["orderDate"],
-                "items": orderSnap["items"],
-                "address": selectedAddress,
-                "deliveryTime": orderSnap["deliveryTime"],
-                "KitchenorderStatus": "Completed",
-              });
-
-              print("🚚 Order Moved to OrderHistory");
-
-              // Delete Order from Orders Collection
-              await FirebaseFirestore.instance.collection("Orders").doc(orderId).delete();
-              print("🗑️ Order Deleted from Orders Collection");
-
-              isCompleted = true;
-            }
-          }
-
-          // Wait 2 seconds before checking again 🔄
-          await Future.delayed(Duration(seconds: 2));
-        }
-
-        // Clear Cart
-        print("🧹 Clearing Cart Items...");
-        for (var doc in cartItems.docs) {
-          await FirebaseFirestore.instance
-              .collection("users")
-              .doc(id)
-              .collection("Cart")
-              .doc(doc.id)
-              .delete();
-          print("🛒 Cart Item Deleted: ${doc.id}");
-        }
-
-        print("✅ Cart Cleared Successfully");
-
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text("Order placed successfully!"),
-          duration: Duration(seconds: 2),
-        ));
-
-        await Future.delayed(Duration(seconds: 2));
-
-        Navigator.pushReplacement(
-            context, MaterialPageRoute(builder: (context) => BottomNav()));
-
-        print("🎯 Order Process Completed");
+            .doc(doc.id)
+            .delete();
+        print("🛒 Cart Item Deleted: ${doc.id}");
       }
+
+      print("✅ Cart Cleared Successfully");
+
+      // Show success message and navigate to BottomNav
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text("Order placed successfully!"),
+        duration: Duration(seconds: 2),
+      ));
+
+      await Future.delayed(Duration(seconds: 1));
+
+      Navigator.pushReplacement(
+          context, MaterialPageRoute(builder: (context) => BottomNav()));
     }
   }
 
+  void startOrderStatusListener() {
+    FirebaseFirestore.instance.collection("Orders").snapshots().listen((snapshot) {
+      print("🔄 Checking for active orders...");
 
+      if (snapshot.docs.isEmpty) {
+        print("🚫 No orders found.");
+        return;
+      }
+
+      print("📦 Found ${snapshot.docs.length} orders.");
+
+      for (var order in snapshot.docs) {
+        String orderId = order.id;
+        String kitchenOrderStatus = order["KitchenorderStatus"];
+
+        print("🔍 Checking Order ID: $orderId, Status: $kitchenOrderStatus");
+
+        if (kitchenOrderStatus == "Completed") {
+          print("✅ Order $orderId is completed. Moving to history...");
+
+          moveToOrderHistory(orderId, order["userId"], order.data()).catchError((e) {
+            print("❌ Error moving order $orderId to history: $e");
+          });
+        }
+      }
+    }, onError: (error) {
+      print("❌ Firestore Listener Error: $error");
+    });
+  }
+
+  Future<void> moveToOrderHistory(String orderId, String userId, Map<String, dynamic> orderData) async {
+    FirebaseFirestore firestore = FirebaseFirestore.instance;
+
+    // Reference to the order document
+    DocumentReference orderRef = firestore.collection('orders').doc(orderId);
+
+    // Reference to order history collection
+    CollectionReference orderHistoryRef = firestore.collection('order_history');
+
+    print("🚚 Moving Order to History Immediately: $orderId");
+
+    try {
+      // Log the order data being moved
+      print("📜 Order Data: ${orderData.toString()}");
+
+      // Move order to history
+      await orderHistoryRef.doc(orderId).set(orderData);
+      print("✅ Order successfully moved to Order History!");
+
+      // Remove order from the 'orders' collection immediately
+      await orderRef.delete();
+      print("🗑️ Order deleted from Active Orders!");
+
+    } catch (e) {
+      print("❌ Error moving order to history: $e");
+    }
+  }
 
 
   Future<void> selectAddress() async {

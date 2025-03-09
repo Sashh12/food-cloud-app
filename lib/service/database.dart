@@ -1,5 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:rxdart/rxdart.dart';
+// import 'package:rxdart/rxdart.dart';
 
 class DatabaseMethods{
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -64,24 +64,10 @@ class DatabaseMethods{
     return await FirebaseFirestore.instance.collection("kitchens").doc(id).set(userInfoMap);
   }
 
-  Future<void> moveToOrderHistory(
-      String userId, String orderId, Map<String, dynamic> orderData) async {
-    print("🚚 Moving Order to OrderHistory...");
 
-    await FirebaseFirestore.instance
-        .collection("OrderHistory")
-        .doc(userId)
-        .collection("PastOrders")
-        .doc(orderId)
-        .set(orderData)
-        .then((value) {
-      print("✅ Order Moved to OrderHistory");
-    }).catchError((error) {
-      print("❌ Failed to Move Order to OrderHistory: $error");
-    });
-  }
 
- } //class ending
+
+} //class ending
 
 
 
