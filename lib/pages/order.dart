@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:foodapp/pages/address.dart';
 import 'package:foodapp/pages/bottomnav.dart';
+import 'package:foodapp/pages/healthyitems.dart';
 import 'package:foodapp/service/database.dart';
 import 'package:foodapp/widget/widget_support.dart';
 import 'dart:async';
@@ -183,9 +184,11 @@ class _OrderState extends State<Order> {
 
       if (cartItems.docs.isEmpty) {
         print("Cart is Empty");
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text("Your cart is empty!"),
-        ));
+        if (mounted) { // Check if still mounted before showing SnackBar
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text("Your cart is empty!"),
+          ));
+        }
         return;
       }
 
@@ -230,8 +233,10 @@ class _OrderState extends State<Order> {
 
       await Future.delayed(Duration(seconds: 1));
 
-      Navigator.pushReplacement(
-          context, MaterialPageRoute(builder: (context) => BottomNav()));
+      if (mounted) { // Check if still mounted before navigating
+        Navigator.pushReplacement(
+            context, MaterialPageRoute(builder: (context) => BottomNav()));
+      }
     }
   }
 
@@ -431,6 +436,85 @@ class _OrderState extends State<Order> {
     }
   }
 
+
+  void checkAndProceedCheckout(BuildContext context, String userId, VoidCallback onCheckout) async {
+    print("🚀 Checkout button clicked! Checking for junk orders...");
+
+    final firestore = FirebaseFirestore.instance;
+    final now = DateTime.now();
+    final pastWeek = now.subtract(Duration(days: 7));
+
+    // Store parent context before async operations
+    final parentContext = context;
+
+    try {
+      QuerySnapshot orderSnapshot = await firestore
+          .collection("order_history")
+          .where("userId", isEqualTo: userId)
+          .where("orderDate", isGreaterThanOrEqualTo: Timestamp.fromDate(pastWeek))
+          .get();
+
+      print("📦 Total orders in past 7 days: ${orderSnapshot.docs.length}");
+
+      int junkOrderCount = orderSnapshot.docs.where((doc) {
+        List<dynamic> items = doc["items"];
+        return items.any((item) => item["FoodCategory"] == "Junk");
+      }).length;
+
+      print("🚨 Junk orders found: $junkOrderCount");
+
+      if (junkOrderCount > 1) {
+        print("🚫 Too many Junk orders. Showing alert...");
+
+        // Ensure context is still valid
+        if (!parentContext.mounted) return;
+
+        showDialog(
+          context: parentContext, // Use stored parent context
+          builder: (BuildContext dialogContext) {
+            return AlertDialog(
+              title: Text("Too Much Junk Food!"),
+              content: Text("You've ordered junk food more than 2 times in the last 7 days. Try something healthy!"),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(dialogContext).pop(); // Close the dialog
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => HealthyItems()), // Navigate to HealthyItems page
+                    );
+                  },
+                  child: Text("OK"),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(dialogContext).pop();
+                    onCheckout();
+                  },
+                  child: Text("Order Anyways"),
+                ),
+              ],
+            );
+          },
+        );
+        return; // Prevent immediate checkout
+      }
+
+      print("✅ No junk order restriction! Proceeding to checkout...");
+      onCheckout();
+
+    } catch (e) {
+      print("❌ Error checking orders: $e");
+
+      if (!parentContext.mounted) return;
+
+      ScaffoldMessenger.of(parentContext).showSnackBar(SnackBar(
+        content: Text("Error checking orders. Please try again."),
+      ));
+    }
+  }
+
+
   @override
   Widget build(BuildContext context) {
     bool isCartEmpty = total == 0; // Check if the cart is empty
@@ -488,8 +572,26 @@ class _OrderState extends State<Order> {
             ),
             SizedBox(height: 10.0),
             GestureDetector(
-              onTap: isCartEmpty ? null : () async {
-                await selectAddress(); // Select an address before placing the order
+              onTap: isCartEmpty
+                  ? null
+                  : () async {
+                User? user = FirebaseAuth.instance.currentUser;
+                String? userId = user?.uid;
+
+                if (userId != null) {
+                  checkAndProceedCheckout(context, userId, () async {
+                    // Proceed only after junk check passes
+                    await selectAddress(); // Now select address
+
+                    if (selectedAddress != null) {
+                      placeOrder(selectedAddress!);
+                    } else {
+                      print("Error: Address not selected");
+                    }
+                  });
+                } else {
+                  print("Error: User ID is null");
+                }
               },
               child: Container(
                 padding: EdgeInsets.symmetric(vertical: 10.0),

@@ -195,8 +195,6 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
                         ),
                         child: Text("Cancel Order", style: TextStyle(color: Colors.white)),
                       ),
-
-
                     ],
                   ),
                 ),
