@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:foodapp/pages/rulechatbot.dart';
 import 'package:foodapp/pages/KitchenFood.dart';
 import 'package:foodapp/pages/details2.dart';
 import '../widget/widget_support.dart';
@@ -118,6 +119,8 @@ class _HomeState extends State<Home> {
                   price: itemData["Price"] ?? "0",
                   kitchenname: itemData["kitchenname"] ?? "",
                   ingredients: itemData["Ingredients"] ?? "",
+                  optionalIngredients: itemData["optionalIngredients"] ?? "",
+                  spiceLevels: itemData["spiceLevels"] ?? "",
                   FoodCategory: itemData["FoodCategory"] ?? "",
 
                 ),
@@ -246,48 +249,71 @@ class _HomeState extends State<Home> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SingleChildScrollView(
-        child: Container(
-          margin: EdgeInsets.only(top: 50.0, left: 20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            child: Container(
+              margin: EdgeInsets.only(top: 50.0, left: 20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("Hello, ${name?.split(' ').first ?? ''}", style: AppWidget.SemiBoldFieldStyle()),
-                  Container(
-                    margin: EdgeInsets.only(right: 20.0),
-                    padding: EdgeInsets.all(3),
-                    decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(8)),
-                    child: Icon(Icons.shopping_cart_outlined, color: Colors.white),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text("Hello, ${name?.split(' ').first ?? ''}",
+                          style: AppWidget.SemiBoldFieldStyle()),
+                      Container(
+                        margin: EdgeInsets.only(right: 20.0),
+                        padding: EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          color: Colors.black,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(Icons.shopping_cart_outlined, color: Colors.white),
+                      ),
+                    ],
                   ),
+                  SizedBox(height: 30.0),
+                  Text("Delicious Food", style: AppWidget.HeaderLineTextFieldStyle()),
+                  Text("Discover and Get Great Food", style: AppWidget.LightTextFieldStyle()),
+                  SizedBox(height: 20.0),
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Text(
+                      "Kitchens",
+                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  Container(height: 250, child: buildKitchens()),
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Text(
+                      "All Items",
+                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  Container(height: 330, child: allItems()),
                 ],
               ),
-              SizedBox(height: 30.0),
-              Text("Delicious Food", style: AppWidget.HeaderLineTextFieldStyle()),
-              Text("Discover and Get Great Food", style: AppWidget.LightTextFieldStyle()),
-              SizedBox(height: 20.0),
-
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Text(
-                  "Kitchens",
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-              ),
-              Container(height: 250,
-                child: buildKitchens(),
-              ),
-              Padding( padding: const EdgeInsets.all(16.0),
-                child: Text("All Items",style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),),
-              ),
-              Container(height: 330,
-                child: allItems(),
-              ),
-            ],
+            ),
           ),
-        ),
+
+          // Chatbot Floating Button
+          Positioned(
+            bottom: 20,
+            right: 20,
+            child: FloatingActionButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => ChatScreen()),
+                );
+              },
+              backgroundColor: Colors.blue,
+              child: Icon(Icons.chat, color: Colors.white),
+            ),
+          ),
+        ],
       ),
     );
   }

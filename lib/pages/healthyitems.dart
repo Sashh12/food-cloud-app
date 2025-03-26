@@ -85,6 +85,8 @@ class _HealthyItemsState extends State<HealthyItems> {
                         price: itemData["Price"] ?? "0",
                         kitchenname: itemData["kitchenname"] ?? "",
                         ingredients: itemData["Ingredients"] ?? "",
+                        optionalIngredients: itemData["optionalIngredients"] ?? "",
+                        spiceLevels: itemData["spiceLevels"] ?? "",
                         FoodCategory: itemData["FoodCategory"] ?? "",
                       ),
                     ),

@@ -86,6 +86,8 @@ class FoodItemsPage extends StatelessWidget {
                                     price: foodItemDoc["Price"] ?? "0",
                                     kitchenname: foodItemDoc["kitchenname"] ?? "",
                                     ingredients: foodItemDoc['Ingredients'] ?? "",
+                                    optionalIngredients: foodItemDoc["optionalIngredients"] ?? "",
+                                    spiceLevels: foodItemDoc["spiceLevels"] ?? "",
                                     FoodCategory: foodItemDoc["FoodCategory"] ?? "",
                                   ),
                                 ),

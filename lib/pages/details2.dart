@@ -1,13 +1,15 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:foodapp/pages/foodcustom.dart';
+import 'package:foodapp/pages/subfoodcustom.dart';
 import 'package:intl/intl.dart';
 import 'package:foodapp/service/database.dart';
 import 'package:foodapp/widget/widget_support.dart';
 
 class Detail extends StatefulWidget {
   String image, name, detail, price, kitchenname, FoodCategory;
-  List<dynamic> ingredients; // Ingredients is now a List<dynamic> to handle Firestore response
+  List<dynamic> ingredients, optionalIngredients, spiceLevels;
 
   Detail({
     required this.detail,
@@ -16,6 +18,8 @@ class Detail extends StatefulWidget {
     required this.price,
     required this.kitchenname,
     required this.ingredients,
+    required this.optionalIngredients,
+    required this.spiceLevels,
     required this.FoodCategory,// Changed to List<dynamic> for ingredients
   });
 
@@ -26,7 +30,8 @@ class Detail extends StatefulWidget {
 class _DetailState extends State<Detail> {
   int a = 1, total = 0;
   String? id;
-  bool showAllIngredients = false; // State to control showing all ingredients
+  bool showAllIngredients = false;
+
 
   @override
   void initState() {
@@ -40,252 +45,12 @@ class _DetailState extends State<Detail> {
     setState(() {});
   }
 
-  // Function to calculate the date for the given day of the current week
-  DateTime getDateForDay(String dayOfWeek) {
-    DateTime now = DateTime.now();
-    int currentWeekday = now.weekday; // Monday = 1, ..., Sunday = 7
-
-    Map<String, int> dayMapping = {
-      'Sunday': 7,
-      'Monday': 1,
-      'Tuesday': 2,
-      'Wednesday': 3,
-      'Thursday': 4,
-      'Friday': 5,
-      'Saturday': 6,
-    };
-
-    int dayTarget = dayMapping[dayOfWeek]!;
-    int difference = dayTarget - currentWeekday;
-
-    // Get the date for the selected day
-    DateTime selectedDate = now.add(Duration(days: difference));
-    return selectedDate;
-  }
-
-  Future<void> showSubscribeDialog() async {
-    List<String> daysOfWeek = [
-      'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
-    ];
-
-    String selectedDay = '';
-    DateTime selectedDate = DateTime.now();
-    TimeOfDay? selectedLunchTime;
-    TimeOfDay? selectedDinnerTime;
-
-    DateTime now = DateTime.now();
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return StatefulBuilder(builder: (context, setState) {
-          return AlertDialog(
-            title: Text('Select a Day for Subscription'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                    "Subscription Week: ${DateFormat('dd/MM/yy').format(DateTime.now().subtract(Duration(days: DateTime.now().weekday - 1)))} - "
-                        "${DateFormat('dd/MM/yy').format(DateTime.now().add(Duration(days: 7 - DateTime.now().weekday)))}"
-                ),
-                SizedBox(height: 10),
-                DropdownButton<String>(
-                  value: selectedDay.isEmpty ? null : selectedDay,
-                  hint: Text("Choose a Day"),
-                  onChanged: (String? newValue) {
-                    setState(() {
-                      selectedDay = newValue!;
-                      selectedDate = getDateForDay(newValue);
-                    });
-                  },
-                  items: daysOfWeek.map((String day) {
-                    DateTime dayDate = getDateForDay(day);
-                    bool isDisabled = dayDate.isBefore(now);
-
-                    return DropdownMenuItem<String>(
-                      value: day,
-                      enabled: !isDisabled,
-                      child: Text(
-                        "$day - ${DateFormat('dd/MM/yy').format(dayDate)}",
-                        style: isDisabled ? TextStyle(color: Colors.grey) : null,
-                      ),
-                    );
-                  }).toList(),
-                ),
-                SizedBox(height: 10),
-                // Lunch time picker
-                Row(
-                  children: [
-                    Text('Lunch Time: '),
-                    TextButton(
-                      onPressed: () async {
-                        TimeOfDay initialTime = selectedDay == DateFormat('EEEE').format(now)
-                            ? TimeOfDay(hour: now.hour, minute: now.minute)
-                            : TimeOfDay.now();
-
-                        TimeOfDay? pickedTime = await showTimePicker(
-                          context: context,
-                          initialTime: initialTime,
-                        );
-
-                        if (pickedTime != null) {
-                          // If it's today, check if the picked time is after the current time
-                          if (selectedDay == DateFormat('EEEE').format(now)) {
-                            final nowInMinutes = now.hour * 60 + now.minute;
-                            final pickedTimeInMinutes = pickedTime.hour * 60 + pickedTime.minute;
-
-                            if (pickedTimeInMinutes <= nowInMinutes) {
-                              // Show a warning if the picked time is before or equal to the current time
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text("Please select a time later than the current time."),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                            } else {
-                              setState(() {
-                                // Deselect dinner time if lunch is selected
-                                selectedDinnerTime = null;
-                                selectedLunchTime = pickedTime;
-                              });
-                            }
-                          } else {
-                            // For future days, allow any time to be selected
-                            setState(() {
-                              // Deselect dinner time if lunch is selected
-                              selectedDinnerTime = null;
-                              selectedLunchTime = pickedTime;
-                            });
-                          }
-                        }
-                      },
-                      child: Text(selectedLunchTime == null
-                          ? "Select Time"
-                          : selectedLunchTime!.format(context)),
-                    ),
-                  ],
-                ),
-                // Dinner time picker
-                Row(
-                  children: [
-                    Text('Dinner Time: '),
-                    TextButton(
-                      onPressed: () async {
-                        TimeOfDay initialTime = selectedDay == DateFormat('EEEE').format(now)
-                            ? TimeOfDay(hour: now.hour, minute: now.minute)
-                            : TimeOfDay.now();
-
-                        TimeOfDay? pickedTime = await showTimePicker(
-                          context: context,
-                          initialTime: initialTime,
-                        );
-
-                        if (pickedTime != null) {
-                          // If it's today, check if the picked time is after the current time
-                          if (selectedDay == DateFormat('EEEE').format(now)) {
-                            final nowInMinutes = now.hour * 60 + now.minute;
-                            final pickedTimeInMinutes = pickedTime.hour * 60 + pickedTime.minute;
-
-                            if (pickedTimeInMinutes <= nowInMinutes) {
-                              // Show a warning if the picked time is before or equal to the current time
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text("Please select a time later than the current time."),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                            } else {
-                              setState(() {
-                                // Deselect lunch time if dinner is selected
-                                selectedLunchTime = null;
-                                selectedDinnerTime = pickedTime;
-                              });
-                            }
-                          } else {
-                            // For future days, allow any time to be selected
-                            setState(() {
-                              // Deselect lunch time if dinner is selected
-                              selectedLunchTime = null;
-                              selectedDinnerTime = pickedTime;
-                            });
-                          }
-                        }
-                      },
-                      child: Text(selectedDinnerTime == null
-                          ? "Select Time"
-                          : selectedDinnerTime!.format(context)),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            actions: <Widget>[
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop(); // Close the dialog
-                },
-                child: Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () async {
-                  // Check that at least one meal time is selected
-                  if (selectedDay.isNotEmpty && (selectedLunchTime != null || selectedDinnerTime != null)) {
-                    // Save the subscription with the selected day, date, and times
-                    await saveSubscription(
-                      selectedDay,
-                      selectedDate,
-                      selectedLunchTime,
-                      selectedDinnerTime,
-                    );
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text("Subscribed for $selectedDay (${DateFormat('dd/MM/yy').format(selectedDate)}) "
-                          "${selectedLunchTime != null ? "Lunch: ${selectedLunchTime!.format(context)}" : ""} "
-                          "${selectedDinnerTime != null ? "Dinner: ${selectedDinnerTime!.format(context)}" : ""}"),
-                    ));
-                    Navigator.of(context).pop();
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text("Please select a day and at least one meal time."),
-                    ));
-                  }
-                },
-                child: Text('Subscribe'),
-              ),
-            ],
-          );
-        });
-      },
-    );
-  }
-
-  // Function to save the subscription data to Firestore
-  Future<void> saveSubscription(String dayOfWeek, DateTime date, TimeOfDay? lunchTime, TimeOfDay? dinnerTime) async {
-    if (id != null) {
-      // Structure the subscription data
-      Map<String, dynamic> subscriptionData = {
-        "productName": widget.name,
-        "price": widget.price,
-        "day": dayOfWeek,
-        "date": DateFormat('dd/MM/yy').format(date), // Save the subscription date
-        "lunchTime": lunchTime != null ? lunchTime.format(context) : "Not Set", // Handle null case
-        "dinnerTime": dinnerTime != null ? dinnerTime.format(context) : "Not Set", // Handle null case
-        "kitchenName": widget.kitchenname,
-      };
-
-      // Save to Firestore under 'subscribe' collection
-      await FirebaseFirestore.instance
-          .collection('subscribe')
-          .doc(id)
-          .collection('days')
-          .doc(dayOfWeek)
-          .set(subscriptionData);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     // Convert ingredients to List<String> if it is List<dynamic>
     List<String> ingredientsList = widget.ingredients.map((e) => e.toString()).toList();
+    List<String> optionalIngredients = widget.optionalIngredients.map((e) => e.toString()).toList();
+    List<String> spiceLevels = widget.spiceLevels.map((e) => e.toString()).toList();
 
     return Scaffold(
       body: SingleChildScrollView(  // Wrap the content inside SingleChildScrollView
@@ -319,6 +84,15 @@ class _DetailState extends State<Detail> {
                           color: Colors.black,
                         ),
                       ),
+                      // SizedBox(height: 10.0),
+                      Text(
+                        widget.FoodCategory,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15.0,
+                          color: Colors.green,
+                        ),
+                      ),
                       Text(
                         widget.kitchenname,
                         style: TextStyle(
@@ -335,22 +109,38 @@ class _DetailState extends State<Detail> {
                           color: Colors.green,
                         ),
                       ),
-                      SizedBox(height: 10.0),
-                      Text(
-                        widget.FoodCategory,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15.0,
-                          color: Colors.green,
-                        ),
-                      ),
+
                     ],
                   ),
                   Spacer(),
                   Column(
                     children: [
                       IconButton(
-                        onPressed: showSubscribeDialog,
+                        onPressed: () {
+                          // Create the foodItem object with all necessary details
+                          Map<String, dynamic> foodItem = {
+                            "name": widget.name,
+                            "kitchenName": widget.kitchenname,
+                            "FoodCategory": widget.FoodCategory,
+                            "image": widget.image,
+                            "price": widget.price,
+                            "ingredients": widget.ingredients.map((e) => e.toString()).toList(),
+                            "optionalIngredients": widget.optionalIngredients.map((e) => e.toString()).toList(),
+                            "spiceLevels": widget.spiceLevels.map((e) => e.toString()).toList(),
+                          };
+
+                          showDialog(
+                            context: context,
+                            builder: (BuildContext context) {
+                              return SubCustomizationDialog(
+                                foodItem: foodItem,  // ✅ Pass the created foodItem object
+                                id: id,
+                                a: a,
+                                total: total,
+                              );
+                            },
+                          );
+                        },
                         icon: Icon(
                           Icons.add_circle_outline,
                           color: Colors.green,
@@ -410,7 +200,7 @@ class _DetailState extends State<Detail> {
                   });
                 },
                 child: Container(
-                  padding: EdgeInsets.all(10.0),
+                  padding: EdgeInsets.all(6.0),
                   decoration: BoxDecoration(
                     border: Border.all(color: Colors.grey),
                   ),
@@ -423,7 +213,7 @@ class _DetailState extends State<Detail> {
                       ),
                       SizedBox(height: 3.0),
                       Text(
-                        ingredientsList.take(showAllIngredients ? ingredientsList.length : 3)
+                        ingredientsList.take(showAllIngredients ? ingredientsList.length : 4)
                             .join(', '),
                         style: TextStyle(fontSize: 16.0),
                       ),
@@ -447,7 +237,7 @@ class _DetailState extends State<Detail> {
               Container(
                 padding: EdgeInsets.symmetric(vertical: 10.0),
                 width: double.infinity,
-                color: Colors.orangeAccent,
+                color: Color(0xFFF6AD58),
                 child: Center(
                   child: Text("Total: "
                     "₹$total",
@@ -459,23 +249,45 @@ class _DetailState extends State<Detail> {
               GestureDetector(
                 onTap: () async {
                   if (id != null) {
-                    // Create the map with the food item details
-                    Map<String, dynamic> addFoodtoCart = {
-                      "Name": widget.name,
-                      "Quantity": a.toString(),
-                      "Total": total.toString(),
-                      "Image": widget.image,
-                      "kitchenname": widget.kitchenname,
-                      "FoodCategory": widget.FoodCategory,
-                    };
+                    // Open the customization screen and wait for the result
+                    final customization = await showDialog(
+                      context: context,
+                      builder: (context) => FoodCustomizationDialog(
+                        foodItem: {
+                          "name": widget.name,
+                          "optionalIngredients": widget.optionalIngredients,
+                          "spiceLevels": widget.spiceLevels,
+                          "image": widget.image, // Include image
+                          "kitchenname": widget.kitchenname, // Include kitchen name
+                          "FoodCategory": widget.FoodCategory,
+                        },
+                        id: id!, // Ensure you have userId defined
+                        quantity: a, // Default quantity
+                        total: total // Example total price (adjust dynamically)
+                      ),
+                    );
 
-                    // Call the method to handle the database operation
-                    await DatabaseMethods().addFoodtoCart(id!, addFoodtoCart);
+                    if (customization != null) {
+                      // Merge customization with food details and add to cart
+                      Map<String, dynamic> addFoodtoCart = {
+                        "Name": widget.name,
+                        "Quantity": a.toString(),
+                        "Total": total.toString(),
+                        "Image": widget.image,
+                        "kitchenname": widget.kitchenname,
+                        "FoodCategory": widget.FoodCategory,
+                        "Selected Ingredients": customization["selectedIngredients"],
+                        "Spice Level": customization["spiceLevel"],
+                        "Custom Instructions": customization["customInstructions"],
+                      };
 
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      backgroundColor: Colors.orangeAccent,
-                      content: Text("Food Item Added to Cart", style: TextStyle(fontSize: 18.0)),
-                    ));
+                      await DatabaseMethods().addFoodtoCart(id!, addFoodtoCart);
+
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        backgroundColor: Colors.orangeAccent,
+                        content: Text("Food Item Added to Cart", style: TextStyle(fontSize: 18.0)),
+                      ));
+                    }
                   }
                 },
                 child: Center(

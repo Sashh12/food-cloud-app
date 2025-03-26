@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:foodapp/Kitchen/K_chats.dart';
 import 'package:foodapp/Kitchen/k_modifyitems.dart';
 import 'package:foodapp/Kitchen/k_subscribeOrders.dart';
 import 'package:foodapp/service/auth.dart';
@@ -302,6 +303,26 @@ class _VendorHomeState extends State<VendorHome> {
             ),
             SizedBox(height: 10.0),
           ],
+        ),
+      ),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 35.0), // Adjust this value as needed
+        child: FloatingActionButton(
+          onPressed: () {
+            if (loggedInKitchenId != null) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => KitchenChatScreen(),
+                ),
+              );
+            } else {
+              print("ERROR: Kitchen ID is null");
+              // You can show a snackbar here if you want.
+            }
+          },
+          backgroundColor: Colors.orange,
+          child: Icon(Icons.chat, color: Colors.white),
         ),
       ),
     );

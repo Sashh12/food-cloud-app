@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:foodapp/pages/address.dart';
 import 'package:foodapp/pages/bottomnav.dart';
 import 'package:foodapp/pages/healthyitems.dart';
+import 'package:foodapp/pages/ordersummary.dart';
 import 'package:foodapp/service/database.dart';
 import 'package:foodapp/widget/widget_support.dart';
 import 'dart:async';
@@ -141,105 +142,6 @@ class _OrderState extends State<Order> {
     );
   }
 
-  Future<void> placeOrder(String selectedAddress) async {
-    print("🔍 placeOrder() Function Called");
-
-    // Check if the widget is still mounted
-    if (!mounted) return;
-
-    if (id != null && wallet != null) {
-      print("✅ User ID Found: $id");
-      print("💰 Wallet Amount: $wallet");
-
-      int walletAmount = int.parse(wallet!);
-      int totalAmount = total + 40; // Delivery charge included
-      print("💵 Total Amount with Delivery: $totalAmount");
-
-      // Check if the wallet has sufficient balance
-      if (walletAmount < totalAmount) {
-        print("Insufficient Balance");
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text("Insufficient balance! Please top up your wallet."),
-          duration: Duration(seconds: 2),
-        ));
-        return;
-      }
-
-      // Deduct Wallet Amount
-      int remainingAmount = walletAmount - totalAmount;
-      print("💳 Deducting Wallet... Remaining Amount: $remainingAmount");
-
-      await FirebaseFirestore.instance
-          .collection("users")
-          .doc(id)
-          .update({"Wallet": remainingAmount.toString()});
-      print("✅ Wallet Deducted Successfully");
-
-      // Fetch Cart Items
-      var cartItems = await FirebaseFirestore.instance
-          .collection("users")
-          .doc(id)
-          .collection("Cart")
-          .get();
-
-      if (cartItems.docs.isEmpty) {
-        print("Cart is Empty");
-        if (mounted) { // Check if still mounted before showing SnackBar
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text("Your cart is empty!"),
-          ));
-        }
-        return;
-      }
-
-      print("🛒 Cart Items Found: ${cartItems.docs.length}");
-
-      // Generate Order ID
-      String orderId = FirebaseFirestore.instance.collection("Orders").doc().id;
-      print("Generated Order ID: $orderId");
-
-      // Place Order
-      await FirebaseFirestore.instance.collection("Orders").doc(orderId).set({
-        "userId": id,
-        "totalAmount": totalAmount,
-        "orderDate": Timestamp.now(),
-        "items": cartItems.docs.map((doc) => doc.data()).toList(),
-        "address": selectedAddress,
-        "deliveryTime": selectedDeliveryTime ?? "Not Available",
-        "KitchenorderStatus": "Pending",
-      });
-
-      print("✅ Order Placed Successfully in Orders Collection");
-
-      // Clear Cart
-      print("🧹 Clearing Cart Items...");
-      for (var doc in cartItems.docs) {
-        await FirebaseFirestore.instance
-            .collection("users")
-            .doc(id)
-            .collection("Cart")
-            .doc(doc.id)
-            .delete();
-        print("🛒 Cart Item Deleted: ${doc.id}");
-      }
-
-      print("✅ Cart Cleared Successfully");
-
-      // Show success message and navigate to BottomNav
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text("Order placed successfully!"),
-        duration: Duration(seconds: 2),
-      ));
-
-      await Future.delayed(Duration(seconds: 1));
-
-      if (mounted) { // Check if still mounted before navigating
-        Navigator.pushReplacement(
-            context, MaterialPageRoute(builder: (context) => BottomNav()));
-      }
-    }
-  }
-
   void startOrderStatusListener() {
     FirebaseFirestore.instance.collection("Orders").snapshots().listen((snapshot) {
       print("🔄 Checking for active orders...");
@@ -298,13 +200,13 @@ class _OrderState extends State<Order> {
     }
   }
 
-
   Future<void> selectAddress() async {
     User? user = FirebaseAuth.instance.currentUser;
     String? userId = user?.uid;
 
     if (userId != null) {
-      DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+      DocumentSnapshot userDoc =
+      await FirebaseFirestore.instance.collection('users').doc(userId).get();
 
       if (!userDoc.exists) {
         await FirebaseFirestore.instance.collection('users').doc(userId).set({
@@ -328,49 +230,51 @@ class _OrderState extends State<Order> {
 
       // Convert addresses to human-readable format
       List<String> displayAddresses = addresses.map((address) {
-        if (address is Map) {
-          String humanReadable = address['address'] ?? '';
-          double latitude = address['latitude'] ?? 0.0;
-          double longitude = address['longitude'] ?? 0.0;
+        if (address is Map && address.containsKey('address')) {
+          String humanReadable = address['address'] ?? 'Unknown';
+          double latitude = (address['latitude'] as num?)?.toDouble() ?? 0.0;
+          double longitude = (address['longitude'] as num?)?.toDouble() ?? 0.0;
           return '$humanReadable (Lat: $latitude, Lng: $longitude)';
         }
         return 'Unknown address'; // Fallback case
       }).toList();
 
-      String? selectedAddress = await showDialog<String>( // Show addresses in a dialog
+      String? selectedAddress = await showDialog<String>(
         context: context,
         builder: (BuildContext context) {
           return AlertDialog(
             title: Text('Select an Address'),
-            content: Container(
-              width: double.minPositive,
-              height: 200,
-              child: Column(
-                children: [
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: displayAddresses.length,
-                      itemBuilder: (context, index) {
-                        return ListTile(
-                          title: Text(displayAddresses[index]),
-                          onTap: () {
-                            Navigator.of(context).pop(displayAddresses[index]);
-                          },
+            content: SingleChildScrollView( // Wrap in SingleChildScrollView
+              child: Container(
+                width: double.minPositive,
+                height: 200,
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: displayAddresses.length,
+                        itemBuilder: (context, index) {
+                          return ListTile(
+                            title: Text(displayAddresses[index]),
+                            onTap: () {
+                              Navigator.of(context).pop(displayAddresses[index]);
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => AddAddressScreen()),
                         );
                       },
+                      child: Text('Add New Address'),
                     ),
-                  ),
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => AddAddressScreen()),
-                      );
-                    },
-                    child: Text('Add New Address'),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
             actions: [
@@ -384,7 +288,6 @@ class _OrderState extends State<Order> {
           );
         },
       );
-
       if (selectedAddress != null) {
         setState(() {
           this.selectedAddress = selectedAddress; // Store the selected address
@@ -394,7 +297,6 @@ class _OrderState extends State<Order> {
       }
     }
   }
-
 
   Future<void> selectDeliveryTime(String selectedAddress) async {
     String? time = await showDialog<String>(
@@ -431,23 +333,33 @@ class _OrderState extends State<Order> {
     );
 
     if (time != null) {
-      selectedDeliveryTime = time;
-      await placeOrder(selectedAddress);
+      setState(() {
+        selectedDeliveryTime = time;// Store the selected address
+      });
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => OrderSummaryPage(
+            selectedAddress: selectedAddress,
+            selectedDeliveryTime: time,
+          ),
+        ),
+      );
     }
   }
 
-
-  void checkAndProceedCheckout(BuildContext context, String userId, VoidCallback onCheckout) async {
+  Future<void> junkCheck(BuildContext context, String userId, VoidCallback onCheckout) async {
     print("🚀 Checkout button clicked! Checking for junk orders...");
 
     final firestore = FirebaseFirestore.instance;
     final now = DateTime.now();
     final pastWeek = now.subtract(Duration(days: 7));
 
-    // Store parent context before async operations
     final parentContext = context;
 
     try {
+      // 🟢 Fetch Order History for the past 7 days
       QuerySnapshot orderSnapshot = await firestore
           .collection("order_history")
           .where("userId", isEqualTo: userId)
@@ -456,40 +368,81 @@ class _OrderState extends State<Order> {
 
       print("📦 Total orders in past 7 days: ${orderSnapshot.docs.length}");
 
+      // 🟢 Count junk orders
+      // int junkOrderCount = orderSnapshot.docs.where((doc) {
+      //   final data = doc.data() as Map<String, dynamic>?; // Explicitly cast to Map
+      //   if (data == null || !data.containsKey("items") || data["items"] == null) return false;
+      //
+      //   List<dynamic> items = data["items"]; // Cast to List
+      //   return items.any((item) {
+      //     if (item is Map<String, dynamic> && item.containsKey("FoodCategory")) {
+      //       return item["FoodCategory"] == "Junk";
+      //     }
+      //     return false;
+      //   });
+      // }).length;
       int junkOrderCount = orderSnapshot.docs.where((doc) {
-        List<dynamic> items = doc["items"];
-        return items.any((item) => item["FoodCategory"] == "Junk");
+        final data = doc.data() as Map<String, dynamic>?; // Explicitly cast to Map
+        if (data == null || !data.containsKey("items") || data["items"] == null || !data.containsKey("orderDate")) {
+          return false;
+        }
+
+        List<dynamic> items = data["items"]; // Cast to List
+        Timestamp orderTimestamp = data["orderDate"]; // Ensure orderDate exists
+        DateTime orderDate = orderTimestamp.toDate();
+
+        return orderDate.isAfter(pastWeek) && items.any((item) {
+          if (item is Map<String, dynamic> && item.containsKey("FoodCategory")) {
+            return item["FoodCategory"] == "Junk";
+          }
+          return false;
+        });
       }).length;
 
       print("🚨 Junk orders found: $junkOrderCount");
 
-      if (junkOrderCount > 1) {
-        print("🚫 Too many Junk orders. Showing alert...");
+      // 🟢 Fetch Cart Items
+      QuerySnapshot cartItemsSnapshot = await firestore
+          .collection("users")
+          .doc(userId)
+          .collection("Cart")
+          .get();
 
-        // Ensure context is still valid
+      // 🟢 Check if ANY item in the cart is Junk
+      bool hasJunkItem = cartItemsSnapshot.docs.any((doc) {
+        final data = doc.data() as Map<String, dynamic>?; // Explicitly cast to Map
+        if (data != null && data.containsKey("FoodCategory")) {
+          return data["FoodCategory"] == "Junk";
+        }
+        return false;
+      });
+
+      if (junkOrderCount >= 2 && hasJunkItem) {
+        print("Junk item found in cart. Showing warning...");
+
         if (!parentContext.mounted) return;
 
         showDialog(
-          context: parentContext, // Use stored parent context
+          context: parentContext,
           builder: (BuildContext dialogContext) {
             return AlertDialog(
-              title: Text("Too Much Junk Food!"),
-              content: Text("You've ordered junk food more than 2 times in the last 7 days. Try something healthy!"),
+              title: Text("Junk Food Alert!"),
+              content: Text("Your cart contains junk food. Consider choosing a healthier option!"),
               actions: [
                 TextButton(
                   onPressed: () {
-                    Navigator.of(dialogContext).pop(); // Close the dialog
+                    Navigator.of(dialogContext).pop();
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => HealthyItems()), // Navigate to HealthyItems page
+                      MaterialPageRoute(builder: (context) => HealthyItems()), // Redirect to healthy options
                     );
                   },
-                  child: Text("OK"),
+                  child: Text("Choose Healthy"),
                 ),
                 TextButton(
                   onPressed: () {
                     Navigator.of(dialogContext).pop();
-                    onCheckout();
+                    onCheckout(); // Allow checkout despite warning
                   },
                   child: Text("Order Anyways"),
                 ),
@@ -497,12 +450,12 @@ class _OrderState extends State<Order> {
             );
           },
         );
-        return; // Prevent immediate checkout
+        return;
       }
 
+      // ✅ No restriction, allow checkout
       print("✅ No junk order restriction! Proceeding to checkout...");
       onCheckout();
-
     } catch (e) {
       print("❌ Error checking orders: $e");
 
@@ -513,6 +466,7 @@ class _OrderState extends State<Order> {
       ));
     }
   }
+
 
 
   @override
@@ -579,15 +533,8 @@ class _OrderState extends State<Order> {
                 String? userId = user?.uid;
 
                 if (userId != null) {
-                  checkAndProceedCheckout(context, userId, () async {
-                    // Proceed only after junk check passes
-                    await selectAddress(); // Now select address
-
-                    if (selectedAddress != null) {
-                      placeOrder(selectedAddress!);
-                    } else {
-                      print("Error: Address not selected");
-                    }
+                  junkCheck(context, userId, () async {
+                    await selectAddress(); // This will now navigate to OrderSummaryPage
                   });
                 } else {
                   print("Error: User ID is null");
