@@ -467,8 +467,6 @@ class _OrderState extends State<Order> {
     }
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     bool isCartEmpty = total == 0; // Check if the cart is empty

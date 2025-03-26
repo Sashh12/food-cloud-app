@@ -43,6 +43,7 @@ class _SignUpState extends State<SignUp> {
             "Name": namecontroller.text,
             "Email": mailcontroller.text,
             "Wallet": "0",
+            "Loyalty": 0,
             "Id": uid, // Store UID instead of random ID
           };
 
@@ -65,7 +66,6 @@ class _SignUpState extends State<SignUp> {
       }
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
