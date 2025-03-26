@@ -532,6 +532,3 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
     );
   }
 }
-
-
-

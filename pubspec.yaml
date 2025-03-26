@@ -50,8 +50,9 @@ dependencies:
   geocoding: ^3.0.0
   permission_handler: ^11.4.0
   cupertino_icons: ^1.0.8
-  provider: ^6.0.0  # For state management
+  provider: ^6.0.0
   google_generative_ai: ^0.4.6
+  speech_to_text: ^7.0.0
 
 dev_dependencies:
   flutter_test:

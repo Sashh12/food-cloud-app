@@ -2,23 +2,10 @@ import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
-import 'package:foodapp/DeliveryBoyPanel/Dashboard.dart';
-import 'package:foodapp/DeliveryBoyPanel/delivery_signup.dart';
-import 'package:foodapp/DeliveryBoyPanel/deliveryorders.dart';
-import 'package:foodapp/admin/admin_login.dart';
-import 'package:foodapp/admin/home_admin.dart';
-import 'package:foodapp/pages/bottomnav.dart';
-import 'package:foodapp/pages/login.dart';
 import 'package:foodapp/pages/onboard.dart';
-import 'package:foodapp/pages/profile.dart';
-import 'package:foodapp/pages/signup.dart';
-import 'package:foodapp/pages/test.dart';
-import 'package:foodapp/pages/wallet.dart';
-import 'package:foodapp/Kitchen/Kitchen_home.dart';
-import 'package:foodapp/Kitchen/Kitchen_login.dart';
-import 'package:foodapp/Kitchen/Kitchen_register.dart';
 import 'package:foodapp/widget/app_constant.dart';
-import 'pages/home.dart';
+
+final GlobalKey<NavigatorState> navKey = GlobalKey<NavigatorState>(); // Declare globally
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -56,6 +43,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       // home: TestFirestoreFetch()
+      navigatorKey: navKey,
       home: Onboard(),
     );
   }

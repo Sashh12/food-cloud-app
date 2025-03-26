@@ -1,10 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:foodapp/main.dart';
+import 'package:foodapp/pages/filterproducts.dart';
 import 'package:foodapp/pages/rulechatbot.dart';
 import 'package:foodapp/pages/KitchenFood.dart';
 import 'package:foodapp/pages/details2.dart';
+import 'package:foodapp/service/voicesearch.dart';
 import '../widget/widget_support.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -17,13 +21,29 @@ class _HomeState extends State<Home> {
   String? name;
   final FirebaseAuth auth = FirebaseAuth.instance;
   List<Map<String, dynamic>> products = [];
+  final SpeechService speechService = SpeechService();
+  final TextEditingController searchController = TextEditingController();
+  List<Map<String, dynamic>> filteredProducts = [];
+  bool isSearching = false;
+
 
   @override
   void initState() {
     super.initState();
     onLoad();
     fetchUserData();
+    speechService.initSpeech();
+    // requestPermissions();
   }
+
+  // Future<void> requestPermissions() async {
+  //   var status = await Permission.microphone.request();
+  //   if (status.isGranted) {
+  //     print("✅ Microphone permission granted.");
+  //   } else {
+  //     print("❌ Microphone permission denied.");
+  //   }
+  // }
 
   // Fetch current user data (name) from Firestore
   Future<void> fetchUserData() async {
@@ -171,7 +191,6 @@ class _HomeState extends State<Home> {
   }
 
   // Build a list of kitchens
-
   Widget buildKitchens() {
     return StreamBuilder(
       stream: FirebaseFirestore.instance.collection('kitchens').snapshots(),
@@ -246,6 +265,110 @@ class _HomeState extends State<Home> {
     );
   }
 
+  void filterSearch(String query) {
+    if (products.isEmpty) return;
+
+    List<Map<String, dynamic>> filtered = SearchService.filterProducts(products, query);
+
+    if (query.isNotEmpty) {
+      // Navigate to the FilteredProductsPage with the filtered products
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => FilteredProductsPage(filteredProducts: filtered),
+        ),
+      ).then((_) {
+        // Clear the search field after returning from the search page
+        searchController.clear();
+        setState(() {}); // Trigger UI update
+      });
+    }
+  }
+
+  void showListeningDialog(bool isListening) {
+    BuildContext? context = navKey.currentContext;
+    if (context == null) return; // Ensure context is available
+
+    // Close any existing dialog first
+    if (Navigator.of(context, rootNavigator: true).canPop()) {
+      Navigator.of(context, rootNavigator: true).pop();
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          content: Row(
+            children: [
+              isListening
+                  ? CircularProgressIndicator()
+                  : Icon(Icons.check_circle, color: Colors.green, size: 30),
+              SizedBox(width: 20),
+              Text(isListening ? "Listening..." : "Done!", style: TextStyle(fontSize: 18)),
+            ],
+          ),
+        );
+      },
+    );
+
+    // If listening is done, close the dialog after 20 seconds
+    if (!isListening) {
+      Future.delayed(Duration(seconds: 5), () {
+        if (context.mounted) {
+          Navigator.of(context, rootNavigator: true).pop();
+        }
+      });
+    }
+  }
+
+
+
+  Widget buildSearchBar() {
+    return Container(
+      margin: const EdgeInsets.only(right: 15.0),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 5.0),
+        child: TextField(
+          controller: searchController,
+          decoration: InputDecoration(
+            hintText: "Search food...",
+            prefixIcon: Icon(Icons.search),
+            suffixIcon: IconButton(
+              icon: Icon(Icons.mic),
+              onPressed: () async {
+                var status = await Permission.microphone.request();
+                if (status.isGranted) {
+                  print("✅ Microphone permission granted.");
+
+                  speechService.startListening(
+                        (voiceInput) {
+                      setState(() {
+                        searchController.text = voiceInput;
+                      });
+                      filterSearch(voiceInput);
+                    },
+                    context,
+                    showListeningDialog, // Pass the function
+                  );
+                } else {
+                  print("❌ Microphone permission denied.");
+                }
+              },
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10.0),
+            ),
+          ),
+          onSubmitted: (query) {
+            filterSearch(query); // Trigger search only when Enter is pressed
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -253,7 +376,7 @@ class _HomeState extends State<Home> {
         children: [
           SingleChildScrollView(
             child: Container(
-              margin: EdgeInsets.only(top: 50.0, left: 20.0),
+              margin: EdgeInsets.only(top: 50.0, left: 18.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -273,10 +396,7 @@ class _HomeState extends State<Home> {
                       ),
                     ],
                   ),
-                  SizedBox(height: 30.0),
-                  Text("Delicious Food", style: AppWidget.HeaderLineTextFieldStyle()),
-                  Text("Discover and Get Great Food", style: AppWidget.LightTextFieldStyle()),
-                  SizedBox(height: 20.0),
+                  buildSearchBar(),
                   Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Text(
