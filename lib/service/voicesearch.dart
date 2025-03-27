@@ -24,74 +24,97 @@ class SpeechService {
     }
   }
 
-  // Future<void> startListening(Function(String) onResult) async {
-  //   bool available = await _speech.initialize();
-  //   if (!available) {
-  //     print("Speech recognition not available");
-  //     return;
-  //   }
-  //
-  //   await _speech.listen(
-  //     onResult: (result) {
-  //       recognizedText = result.recognizedWords;
-  //       onResult(recognizedText);
-  //     },
-  //   );
-  //   isListening = true;
-  // }
-  //
-  // void stopListening() {
-  //   _speech.stop();
-  //   isListening = false;
-  // }
-
   Future<void> startListening(
       Function(String) onResult,
       BuildContext context,
-      Function(bool) showListeningDialog) async {
+      Function(BuildContext) showListeningDialog) async {
 
-    bool available = await _speech.initialize(
-      onStatus: (status) {
-        if (status == "done") { // Speech has stopped
-          stopListening(context, showListeningDialog);
-        }
-      },
-    );
-
+    bool available = await _speech.initialize();
     if (!available) {
-      print("Speech recognition not available");
+      print("❌ Speech recognition not available");
       return;
     }
 
-    // Show the listening dialog with loading spinner
-    showListeningDialog(true);
+    showListeningDialog(context); // ✅ Show listening dialog before starting
 
     await _speech.listen(
       onResult: (result) {
         recognizedText = result.recognizedWords;
-        onResult(recognizedText);
+
+        if (recognizedText.isNotEmpty) {
+          _speech.stop(); // ✅ Stop listening once text is captured
+          onResult(recognizedText); // ✅ Pass recognized text for filtering
+        }
       },
-      onSoundLevelChange: (_) {}, // Prevents error
     );
 
     isListening = true;
   }
 
-  void stopListening(BuildContext context, Function(bool) showListeningDialog) {
+
+
+  void stopListening(BuildContext context, Function(BuildContext, bool) showListeningDialog) {
     _speech.stop();
     isListening = false;
 
     // Update dialog to show checkmark
-    showListeningDialog(false);
+    showListeningDialog(context, false);
 
-    // Close the dialog after a delay
+    // Close the dialog after 1 second
     Future.delayed(Duration(seconds: 1), () {
-      Navigator.pop(context); // Close the dialog
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
     });
   }
+
+  // Future<void> startListening(
+  //     Function(String) onResult,
+  //     BuildContext context,
+  //     Function(BuildContext, bool) showListeningDialog) async {
+  //   try {
+  //     bool available = await _speech.initialize(
+  //       onStatus: (status) {
+  //         if (status == "done") {
+  //           stopListening(context, showListeningDialog);
+  //         }
+  //       },
+  //     );
+  //
+  //     if (!available) {
+  //       print("❌ Speech recognition not available");
+  //       return;
+  //     }
+  //
+  //     showListeningDialog(context, true);
+  //
+  //     await _speech.listen(
+  //       onResult: (result) {
+  //         recognizedText = result.recognizedWords;
+  //         onResult(recognizedText);
+  //       },
+  //     );
+  //
+  //     isListening = true;
+  //   } catch (e) {
+  //     print("🔥 Error in startListening: $e");
+  //   }
+  // }
+  //
+  //
+  // void stopListening(BuildContext context, Function(bool) showListeningDialog) {
+  //   _speech.stop();
+  //   isListening = false;
+  //
+  //   // Update dialog to show checkmark
+  //   showListeningDialog(false);
+  //
+  //   // Close the dialog after a delay
+  //   Future.delayed(Duration(seconds: 1), () {
+  //     Navigator.pop(context); // Close the dialog
+  //   });
+  // }
 }
-
-
 
   class SearchService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;

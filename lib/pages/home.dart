@@ -285,46 +285,6 @@ class _HomeState extends State<Home> {
     }
   }
 
-  void showListeningDialog(bool isListening) {
-    BuildContext? context = navKey.currentContext;
-    if (context == null) return; // Ensure context is available
-
-    // Close any existing dialog first
-    if (Navigator.of(context, rootNavigator: true).canPop()) {
-      Navigator.of(context, rootNavigator: true).pop();
-    }
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          content: Row(
-            children: [
-              isListening
-                  ? CircularProgressIndicator()
-                  : Icon(Icons.check_circle, color: Colors.green, size: 30),
-              SizedBox(width: 20),
-              Text(isListening ? "Listening..." : "Done!", style: TextStyle(fontSize: 18)),
-            ],
-          ),
-        );
-      },
-    );
-
-    // If listening is done, close the dialog after 20 seconds
-    if (!isListening) {
-      Future.delayed(Duration(seconds: 5), () {
-        if (context.mounted) {
-          Navigator.of(context, rootNavigator: true).pop();
-        }
-      });
-    }
-  }
-
-
-
   Widget buildSearchBar() {
     return Container(
       margin: const EdgeInsets.only(right: 15.0),
@@ -338,23 +298,19 @@ class _HomeState extends State<Home> {
             suffixIcon: IconButton(
               icon: Icon(Icons.mic),
               onPressed: () async {
-                var status = await Permission.microphone.request();
-                if (status.isGranted) {
-                  print("✅ Microphone permission granted.");
+                speechService.startListening(
+                      (voiceInput) {
+                    setState(() {
+                      searchController.text = voiceInput; // ✅ Update text field
+                    });
 
-                  speechService.startListening(
-                        (voiceInput) {
-                      setState(() {
-                        searchController.text = voiceInput;
-                      });
+                    Future.delayed(Duration(milliseconds: 500), () { // ✅ Small delay before filtering
                       filterSearch(voiceInput);
-                    },
-                    context,
-                    showListeningDialog, // Pass the function
-                  );
-                } else {
-                  print("❌ Microphone permission denied.");
-                }
+                    });
+                  },
+                  context,
+                  showListeningDialog,
+                );
               },
             ),
             border: OutlineInputBorder(
@@ -368,6 +324,103 @@ class _HomeState extends State<Home> {
       ),
     );
   }
+
+  void showListeningDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false, // Prevents dismissing by tapping outside
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          content: Row(
+            children: [
+              CircularProgressIndicator(), // Spinning animation
+              SizedBox(width: 20),
+              Text("Listening...", style: TextStyle(fontSize: 18)),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+
+  // void showListeningDialog(BuildContext context, bool isListening) {
+  //   if (context.mounted) {
+  //     showDialog(
+  //       context: context,
+  //       barrierDismissible: false,
+  //       builder: (context) {
+  //         return AlertDialog(
+  //           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+  //           content: Row(
+  //             children: [
+  //               isListening
+  //                   ? CircularProgressIndicator()
+  //                   : Icon(Icons.check_circle, color: Colors.green, size: 30),
+  //               SizedBox(width: 20),
+  //               Text(isListening ? "Listening..." : "Done!", style: TextStyle(fontSize: 18)),
+  //             ],
+  //           ),
+  //         );
+  //       },
+  //     );
+  //   }
+  //
+  //   // Close the dialog after 5 seconds if not listening
+  //   if (!isListening) {
+  //     Future.delayed(Duration(seconds: 5), () {
+  //       if (context.mounted) {
+  //         Navigator.of(context, rootNavigator: true).pop();
+  //       }
+  //     });
+  //   }
+  // }
+  //
+  //
+  // Widget buildSearchBar() {
+  //   return Container(
+  //     margin: const EdgeInsets.only(right: 15.0),
+  //     child: Padding(
+  //       padding: const EdgeInsets.symmetric(vertical: 5.0),
+  //       child: TextField(
+  //         controller: searchController,
+  //         decoration: InputDecoration(
+  //           hintText: "Search food...",
+  //           prefixIcon: Icon(Icons.search),
+  //           suffixIcon: IconButton(
+  //             icon: Icon(Icons.mic),
+  //             onPressed: () async {
+  //               var status = await Permission.microphone.request();
+  //               if (status.isGranted) {
+  //                 print("✅ Microphone permission granted.");
+  //
+  //                 speechService.startListening(
+  //                       (voiceInput) {
+  //                     setState(() {
+  //                       searchController.text = voiceInput;
+  //                     });
+  //                     filterSearch(voiceInput);
+  //                   },
+  //                   context,
+  //                   showListeningDialog, // Pass the function
+  //                 );
+  //               } else {
+  //                 print("❌ Microphone permission denied.");
+  //               }
+  //             },
+  //           ),
+  //           border: OutlineInputBorder(
+  //             borderRadius: BorderRadius.circular(10.0),
+  //           ),
+  //         ),
+  //         onSubmitted: (query) {
+  //           filterSearch(query); // Trigger search only when Enter is pressed
+  //         },
+  //       ),
+  //     ),
+  //   );
+  // }
 
   @override
   Widget build(BuildContext context) {

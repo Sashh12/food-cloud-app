@@ -1,0 +1,2 @@
+C:/sania/foodApp/android/app/.cxx/RelWithDebInfo/4f3t3c71/armeabi-v7a/CMakeFiles/edit_cache.dir
+C:/sania/foodApp/android/app/.cxx/RelWithDebInfo/4f3t3c71/armeabi-v7a/CMakeFiles/rebuild_cache.dir

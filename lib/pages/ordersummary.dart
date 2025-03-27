@@ -89,142 +89,6 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
     }
   }
 
-  // Future<void> placeOrder() async {
-  //   print("🔍 placeOrder() Function Called");
-  //
-  //   await getUserData();
-  //
-  //   if (!mounted) return; // Ensure widget is still mounted
-  //   if (userId == null || wallet == null) {
-  //     print("❌ User ID or Wallet is null");
-  //     return;
-  //   }
-  //
-  //   print("✅ User ID Found: $userId");
-  //   print("💰 Wallet Amount: $wallet");
-  //
-  //   int walletAmount = int.tryParse(wallet!) ?? 0;
-  //   int totalAmount = total + deliveryCharge; // Include delivery charge
-  //   print("💵 Total Amount with Delivery: $totalAmount");
-  //
-  //   if (walletAmount < totalAmount) {
-  //     print("❌ Insufficient Balance");
-  //     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-  //       content: Text("Insufficient balance! Please top up your wallet."),
-  //       duration: Duration(seconds: 2),
-  //     ));
-  //     return;
-  //   }
-  //
-  //   // Fetch Cart Items from Firestore
-  //   QuerySnapshot cartSnapshot = await FirebaseFirestore.instance
-  //       .collection("users")
-  //       .doc(userId)
-  //       .collection("Cart")
-  //       .get();
-  //
-  //   if (cartSnapshot.docs.isEmpty) {
-  //     print("❌ Cart is Empty");
-  //     if (mounted) {
-  //       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-  //         content: Text("Your cart is empty!"),
-  //       ));
-  //     }
-  //     return;
-  //   }
-  //
-  //   // Convert Firestore docs to a list of items
-  //   List<Map<String, dynamic>> cartItems = cartSnapshot.docs.map((doc) => doc.data() as Map<String, dynamic>).toList();
-  //
-  //   print("🛒 Cart Items Found: ${cartItems.length}");
-  //
-  //   // Generate Order ID
-  //   String orderId = FirebaseFirestore.instance.collection("Orders").doc().id;
-  //   print("📌 Generated Order ID: $orderId");
-  //
-  //   // Deduct Wallet Amount
-  //   int remainingAmount = max(0, walletAmount - totalAmount);
-  //   print("💳 Deducting Wallet... Remaining Balance: $remainingAmount");
-  //
-  //   await FirebaseFirestore.instance
-  //       .collection("users")
-  //       .doc(userId)
-  //       .update({"Wallet": remainingAmount.toString()});
-  //   print("✅ Wallet Deducted Successfully");
-  //
-  //   // Save Order to Firestore
-  //   await FirebaseFirestore.instance.collection("Orders").doc(orderId).set({
-  //     "userId": userId,
-  //     "totalAmount": totalAmount,
-  //     "orderDate": Timestamp.now(),
-  //     "items": cartItems,
-  //     "address": widget.selectedAddress,
-  //     "deliveryTime": widget.selectedDeliveryTime,
-  //     "KitchenorderStatus": "Pending",
-  //   });
-  //
-  //   print("✅ Order Placed Successfully");
-  //
-  //   int loyaltyPoints = 0;
-  //   if (totalAmount >= 1000) {
-  //     loyaltyPoints = 30;
-  //   } else if (totalAmount >= 500) {
-  //     loyaltyPoints = 15;
-  //   } else if (totalAmount >= 200) {
-  //     loyaltyPoints = 10;
-  //   }
-  //
-  //   if (loyaltyPoints > 0) {
-  //     // Fetch current loyalty points
-  //     DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection("users").doc(userId).get();
-  //     int currentLoyalty = (userDoc.data() as Map<String, dynamic>)["Loyalty"] ?? 0;
-  //     int updatedLoyalty = currentLoyalty + loyaltyPoints;
-  //
-  //     await FirebaseFirestore.instance
-  //         .collection("users")
-  //         .doc(userId)
-  //         .update({"Loyalty": updatedLoyalty});
-  //     print("🏆 Loyalty Points Updated: $updatedLoyalty");
-  //
-  //     // Show message with points earned
-  //     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-  //       content: Text("Order placed successfully! 🎉 You earned $loyaltyPoints Loyalty Points."),
-  //       duration: Duration(seconds: 2),
-  //     ));
-  //   } else {
-  //     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-  //       content: Text("Order placed successfully!"),
-  //       duration: Duration(seconds: 2),
-  //     ));
-  //   }
-  //
-  //   // Clear Cart
-  //   print("🧹 Clearing Cart...");
-  //   for (var doc in cartSnapshot.docs) {
-  //     await FirebaseFirestore.instance
-  //         .collection("users")
-  //         .doc(userId)
-  //         .collection("Cart")
-  //         .doc(doc.id)
-  //         .delete();
-  //     print("🛒 Deleted Cart Item: ${doc.id}");
-  //   }
-  //
-  //   print("✅ Cart Cleared Successfully");
-  //
-  //   // Show Success Message & Navigate
-  //   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-  //     content: Text("Order placed successfully!"),
-  //     duration: Duration(seconds: 2),
-  //   ));
-  //
-  //   await Future.delayed(Duration(seconds: 1));
-  //
-  //   if (mounted) {
-  //     Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => BottomNav()));
-  //   }
-  // }
-
   void toggleLoyaltyPoints(bool? value) {
     if (value == null) return;
     setState(() {
@@ -270,10 +134,19 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
       int finalAmount = total + deliveryCharge - appliedLoyalty;
       if (finalAmount < 0) finalAmount = 0;
 
+      // if (useLoyaltyPoints) {
+      //   await FirebaseFirestore.instance.collection("users").doc(userId).update({
+      //     "Loyalty": 0,
+      //   });
+      // }
       if (useLoyaltyPoints) {
+        int updatedLoyalty = max(0, loyalty - appliedLoyalty); // Deduct applied loyalty but ensure it doesn't go negative
+
         await FirebaseFirestore.instance.collection("users").doc(userId).update({
-          "Loyalty": 0,
+          "Loyalty": updatedLoyalty,
         });
+
+        print("🏆 Loyalty Points Deducted: $appliedLoyalty | New Balance: $updatedLoyalty");
       }
 
       int walletAmount = int.tryParse(wallet!) ?? 0;
@@ -318,8 +191,6 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
       String orderId = FirebaseFirestore.instance.collection("Orders").doc().id;
       print("📌 Generated Order ID: $orderId");
 
-
-
       // 💳 Deduct Wallet Amount
       int remainingAmount = walletAmount - finalAmount;
       print("💳 Deducting Wallet... Remaining Balance: $remainingAmount");
@@ -331,17 +202,6 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
 
       // 📦 Save Order to Firestore
       print("📤 Saving Order to Firestore...");
-      await FirebaseFirestore.instance.collection("Orders").doc(orderId).set({
-        "userId": userId,
-        "totalAmount": finalAmount,
-        "orderDate": Timestamp.now(),
-        "items": cartItems,
-        "address": widget.selectedAddress,
-        "deliveryTime": widget.selectedDeliveryTime,
-        "KitchenorderStatus": "Pending",
-      });
-
-      print("✅ Order Placed Successfully");
 
       // 🏆 Determine Loyalty Points Based on Total Amount
       int loyaltyPoints = 0;
@@ -353,6 +213,21 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
         loyaltyPoints = 10;
       }
       print("🎯 Loyalty Points Calculated: $loyaltyPoints");
+
+      // 📦 Save Order to Firestore (including loyalty points)
+      print("📤 Saving Order to Firestore...");
+      await FirebaseFirestore.instance.collection("Orders").doc(orderId).set({
+        "userId": userId,
+        "totalAmount": finalAmount,
+        "orderDate": Timestamp.now(),
+        "items": cartItems,
+        "address": widget.selectedAddress,
+        "deliveryTime": widget.selectedDeliveryTime,
+        "KitchenorderStatus": "Pending",
+        "loyalty": loyaltyPoints, // ✅ Save earned loyalty in order
+      });
+
+      print("✅ Order Placed Successfully");
 
       if (loyaltyPoints > 0) {
         print("🔍 Fetching current loyalty points...");
@@ -485,32 +360,6 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                   ),
                 ],
               ),
-              // Divider(),
-              // Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              //   Text("Subtotal:", style: TextStyle(fontSize: 16)),
-              //   Text("₹$total", style: TextStyle(fontSize: 16)),
-              // ]),
-              // Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              //   Text("Delivery Charge:", style: TextStyle(fontSize: 16)),
-              //   Text("₹$deliveryCharge", style: TextStyle(fontSize: 16)),
-              // ]),
-              // CheckboxListTile(
-              //   title: Text("Use Loyalty Points ($loyalty available)"),
-              //   value: useLoyaltyPoints,
-              //   onChanged: toggleLoyaltyPoints,
-              // ),
-              // Divider(),
-              // Row(
-              //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              //   children: [
-              //     Text("Total Amount:", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              //     Text(
-              //       "₹${(total + deliveryCharge - appliedLoyalty).clamp(0, double.infinity)}",
-              //       style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              //     ),
-              //   ],
-              // ),
-
               SizedBox(height: 20),Center(
                 child: ElevatedButton(
                   onPressed: () => placeOrder(),

@@ -85,33 +85,47 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
     try {
       DocumentSnapshot orderDoc =
       await _firestore.collection('Orders').doc(orderId).get();
+
       if (!orderDoc.exists) {
-        print("Order does not exist");
+        print("❌ Order does not exist");
         return;
       }
 
       int totalAmount = orderDoc['totalAmount'];
+      int orderLoyalty = orderDoc['loyalty'] ?? 0; // Fetch loyalty from the order
       final userId = _auth.currentUser?.uid;
 
       if (userId != null) {
         DocumentSnapshot userDoc =
         await _firestore.collection('users').doc(userId).get();
+
         if (userDoc.exists) {
-          int walletAmount = int.parse(userDoc['Wallet']);
+          int walletAmount = int.tryParse(userDoc['Wallet'] ?? "0") ?? 0;
+          int userLoyalty = userDoc['Loyalty'] ?? 0;
+
+          // Refund Wallet Amount
           int updatedWallet = walletAmount + totalAmount;
 
-          await _firestore
-              .collection('users')
-              .doc(userId)
-              .update({"Wallet": updatedWallet.toString()});
+          // Deduct Loyalty Points, ensuring it doesn't go negative
+          int updatedLoyalty = (userLoyalty - orderLoyalty).clamp(0, userLoyalty);
+
+          await _firestore.collection('users').doc(userId).update({
+            "Wallet": updatedWallet.toString(),
+            "Loyalty": updatedLoyalty,
+          });
+
+          print("✅ Wallet Refunded: $totalAmount");
+          print("🏆 Loyalty Deducted: $orderLoyalty (Updated: $updatedLoyalty)");
         }
       }
 
+      // Delete the order from Firestore
       await _firestore.collection('Orders').doc(orderId).delete();
+      print("✅ Order Cancelled and Deleted");
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text("Order Cancelled and Amount Refunded"),
+          content: Text("Order Cancelled. Amount Refunded. Loyalty Deducted."),
           backgroundColor: Colors.redAccent,
         ));
       }
@@ -123,9 +137,55 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
         }
       });
     } catch (e) {
-      print("Error cancelling order: $e");
+      print("❌ Error cancelling order: $e");
     }
   }
+
+  // Future<void> _cancelOrder(String orderId) async {
+  //   try {
+  //     DocumentSnapshot orderDoc =
+  //     await _firestore.collection('Orders').doc(orderId).get();
+  //     if (!orderDoc.exists) {
+  //       print("Order does not exist");
+  //       return;
+  //     }
+  //
+  //     int totalAmount = orderDoc['totalAmount'];
+  //     final userId = _auth.currentUser?.uid;
+  //
+  //     if (userId != null) {
+  //       DocumentSnapshot userDoc =
+  //       await _firestore.collection('users').doc(userId).get();
+  //       if (userDoc.exists) {
+  //         int walletAmount = int.parse(userDoc['Wallet']);
+  //         int updatedWallet = walletAmount + totalAmount;
+  //
+  //         await _firestore
+  //             .collection('users')
+  //             .doc(userId)
+  //             .update({"Wallet": updatedWallet.toString()});
+  //       }
+  //     }
+  //
+  //     await _firestore.collection('Orders').doc(orderId).delete();
+  //
+  //     if (mounted) {
+  //       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+  //         content: Text("Order Cancelled and Amount Refunded"),
+  //         backgroundColor: Colors.redAccent,
+  //       ));
+  //     }
+  //
+  //     Future.delayed(Duration(seconds: 1), () {
+  //       if (mounted) {
+  //         Navigator.pushReplacement(
+  //             context, MaterialPageRoute(builder: (context) => BottomNav()));
+  //       }
+  //     });
+  //   } catch (e) {
+  //     print("Error cancelling order: $e");
+  //   }
+  // }
 
   Widget currentOrdersList() {
     return StreamBuilder<QuerySnapshot>(

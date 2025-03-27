@@ -101,7 +101,7 @@ class _OnboardState extends State<Onboard> {
               }
             },
             child: Container(
-              height: screenHeight * 0.08, // 8% of screen height for button height
+              height: screenHeight * 0.07, // 8% of screen height for button height
               margin: EdgeInsets.all(screenWidth * 0.1), // 10% of screen width for margin
               width: double.infinity,
               decoration: BoxDecoration(
