@@ -133,8 +133,10 @@ class _FoodCustomizationDialogState extends State<FoodCustomizationDialog> {
 
                       Navigator.pop(context);
                     },
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                    child: Text("Add to Cart"),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                    child: Text("Add to Cart",
+                      style: TextStyle(color: Colors.white,)
+                    ),
                   ),
                 ],
               ),

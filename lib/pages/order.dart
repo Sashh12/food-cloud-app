@@ -80,6 +80,8 @@ class _OrderState extends State<Order> {
               itemBuilder: (context, index) {
                 DocumentSnapshot ds = snapshot.data.docs[index];
                 total += int.parse(ds["Total"]); // Add each item total
+                TextEditingController quantityController = TextEditingController(text: ds["Quantity"].toString());
+
                 return Container(
                   margin: EdgeInsets.only(left: 10.0, right: 10.0, bottom: 10.0),
                   child: Material(
@@ -91,13 +93,64 @@ class _OrderState extends State<Order> {
                       child: Row(
                         children: [
                           Container(
-                              height: 50.0,
-                              width: 40.0,
-                              decoration: BoxDecoration(
-                                border: Border.all(),
-                                borderRadius: BorderRadius.circular(10),
+                            height: 50.0,
+                            width: 40.0,
+                            child: TextField(
+                              controller: quantityController,
+                              keyboardType: TextInputType.number,
+                              decoration: InputDecoration(
+                                border: OutlineInputBorder(),
+                                contentPadding: EdgeInsets.symmetric(vertical: 10.0, horizontal: 10.0),
                               ),
-                              child: Center(child: Text(ds["Quantity"]))),
+                              onSubmitted: (value) async {
+                                print("=== onSubmitted Triggered ===");
+                                print("Raw input value: $value");
+
+                                try {
+                                  int newQuantity = int.tryParse(value) ?? 1;
+                                  print("Parsed new quantity: $newQuantity");
+
+                                  int currentTotal = int.parse(ds["Total"].toString());
+                                  int currentQuantity = int.parse(ds["Quantity"].toString());
+
+                                  print("Current Total from Firestore: $currentTotal");
+                                  print("Current Quantity from Firestore: $currentQuantity");
+
+                                  // Avoid division by zero
+                                  if (currentQuantity == 0) {
+                                    print("⚠️ Current quantity is 0, cannot calculate price per item");
+                                    return;
+                                  }
+
+                                  int pricePerItem = currentTotal ~/ currentQuantity;
+                                  print("Calculated price per item: $pricePerItem");
+
+                                  int newTotal = pricePerItem * newQuantity;
+                                  print("Calculated new total: $newTotal");
+
+                                  print("Attempting Firestore update...");
+
+                                  await FirebaseFirestore.instance
+                                      .collection("users")
+                                      .doc(id)
+                                      .collection("Cart")
+                                      .doc(ds.id)
+                                      .update({
+                                    "Quantity": newQuantity,
+                                    "Total": newTotal.toString(),
+                                  });
+
+                                  print("✅ Firestore update successful.");
+                                  setState(() {}); // Refresh the UI
+
+                                } catch (e) {
+                                  print("❌ Error during update: $e");
+                                }
+
+                                print("=== onSubmitted Completed ===");
+                              },
+                            ),
+                          ),
                           SizedBox(width: 10.0),
                           ClipRRect(
                               borderRadius: BorderRadius.circular(40),
@@ -141,6 +194,117 @@ class _OrderState extends State<Order> {
       },
     );
   }
+
+  // Widget foodCart() {
+  //   return StreamBuilder(
+  //     stream: foodStream,
+  //     builder: (context, AsyncSnapshot snapshot) {
+  //       if (snapshot.hasData) {
+  //         // Reset total before calculating
+  //         total = 0;
+  //
+  //         return ListView.builder(
+  //           padding: EdgeInsets.zero,
+  //           itemCount: snapshot.data.docs.length,
+  //           shrinkWrap: true,
+  //           scrollDirection: Axis.vertical,
+  //           itemBuilder: (context, index) {
+  //             DocumentSnapshot ds = snapshot.data.docs[index];
+  //             int itemPrice = int.parse(ds["Price"]); // Assuming you have a "Price" field in Firestore
+  //             int itemTotal = int.parse(ds["Total"]); // Current total for this item
+  //             int currentQuantity = int.parse(ds["Quantity"]); // Current quantity
+  //
+  //             // Update total with the current item's total
+  //             total += itemTotal;
+  //
+  //             TextEditingController quantityController = TextEditingController(text: currentQuantity.toString());
+  //
+  //             return Container(
+  //               margin: EdgeInsets.only(left: 10.0, right: 10.0, bottom: 10.0),
+  //               child: Material(
+  //                 elevation: 5.0,
+  //                 borderRadius: BorderRadius.circular(10),
+  //                 child: Container(
+  //                   decoration: BoxDecoration(borderRadius: BorderRadius.circular(20)),
+  //                   padding: EdgeInsets.all(10),
+  //                   child: Row(
+  //                     children: [
+  //                       Container(
+  //                         height: 50.0,
+  //                         width: 40.0,
+  //                         child: TextField(
+  //                           controller: quantityController,
+  //                           keyboardType: TextInputType.number,
+  //                           decoration: InputDecoration(
+  //                             border: OutlineInputBorder(),
+  //                             contentPadding: EdgeInsets.symmetric(vertical: 10.0, horizontal: 10.0),
+  //                           ),
+  //                           onSubmitted: (value) async {
+  //                             int newQuantity = int.tryParse(value) ?? 1; // Default to 1 if parsing fails
+  //                             int newTotal = newQuantity * itemPrice; // Calculate new total for this item
+  //
+  //                             // Update Firestore with new quantity and total
+  //                             await FirebaseFirestore.instance
+  //                                 .collection("users")
+  //                                 .doc(id)
+  //                                 .collection("Cart")
+  //                                 .doc(ds.id)
+  //                                 .update({
+  //                               "Quantity": newQuantity,
+  //                               "Total": newTotal, // Update the total price in Firestore
+  //                             });
+  //
+  //                             setState(() {
+  //                               // Update the total price in the UI
+  //                               total = total - itemTotal + newTotal; // Adjust the total price
+  //                             });
+  //                           },
+  //                         ),
+  //                       ),
+  //                       SizedBox(width: 10.0),
+  //                       ClipRRect(
+  //                           borderRadius: BorderRadius.circular(40),
+  //                           child: Image.network(ds["Image"], height: 90, width: 90, fit: BoxFit.cover)),
+  //                       SizedBox(width: 10.0),
+  //                       Expanded(
+  //                         child: Column(
+  //                           crossAxisAlignment: CrossAxisAlignment.start,
+  //                           children: [
+  //                             Text(
+  //                               ds["Name"],
+  //                               style: AppWidget.NormalText(),
+  //                               maxLines: 2,
+  //                               overflow: TextOverflow.ellipsis,
+  //                             ),
+  //                             Text("₹ " + itemTotal.toString(), style: AppWidget.NormalText()), // Display the total for this item
+  //                           ],
+  //                         ),
+  //                       ),
+  //                       IconButton(
+  //                         icon: Icon(Icons.cancel, color: Colors.black),
+  //                         onPressed: () async {
+  //                           await FirebaseFirestore.instance
+  //                               .collection("users")
+  //                               .doc(id)
+  //                               .collection("Cart")
+  //                               .doc(ds.id)
+  //                               .delete();
+  //                           setState(() {});
+  //                         },
+  //                       ),
+  //                     ],
+  //                   ),
+  //                 ),
+  //               ),
+  //             );
+  //           },
+  //         );
+  //       } else {
+  //         return Center(child: CircularProgressIndicator());
+  //       }
+  //     },
+  //   );
+  // }
 
   void startOrderStatusListener() {
     FirebaseFirestore.instance.collection("Orders").snapshots().listen((snapshot) {
@@ -467,95 +631,190 @@ class _OrderState extends State<Order> {
     }
   }
 
+  // @override
+  // Widget build(BuildContext context) {
+  //   bool isCartEmpty = total == 0; // Check if the cart is empty
+  //
+  //   return Scaffold(
+  //     body: Container(
+  //       padding: EdgeInsets.only(top: 60.0),
+  //       child: Column(
+  //         crossAxisAlignment: CrossAxisAlignment.start,
+  //         children: [
+  //           Material(
+  //             elevation: 2.0,
+  //             child: Container(
+  //               padding: EdgeInsets.only(bottom: 10.0),
+  //               child: Center(child: Text("Food Cart")),
+  //             ),
+  //           ),
+  //           SizedBox(height: 20.0),
+  //           Container(
+  //             height: MediaQuery.of(context).size.height / 2,
+  //             child: foodCart(),
+  //           ),
+  //           Spacer(),
+  //           Divider(),
+  //           Padding(
+  //             padding: EdgeInsets.only(left: 10.0, right: 10.0),
+  //             child: Column(
+  //               crossAxisAlignment: CrossAxisAlignment.start,
+  //               children: [
+  //                 Row(
+  //                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  //                   children: [
+  //                     Text("Subtotal", style: AppWidget.BoldTextFieldStyle()),
+  //                     Text("\₹ $total", style: AppWidget.SemiBoldFieldStyle()),
+  //                   ],
+  //                 ),
+  //                 SizedBox(height: 5.0),
+  //                 Row(
+  //                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  //                   children: [
+  //                     Text("Delivery Price", style: AppWidget.normalText()),
+  //                     Text("\₹ 40", style: AppWidget.SemiBoldFieldStyle()),
+  //                   ],
+  //                 ),
+  //                 Divider(),
+  //                 Row(
+  //                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  //                   children: [
+  //                     Text("Total Price", style: AppWidget.BoldTextFieldStyle()),
+  //                     Text("\₹ ${total + 40}", style: AppWidget.SemiBoldFieldStyle()), // Adding delivery price
+  //                   ],
+  //                 ),
+  //               ],
+  //             ),
+  //           ),
+  //           SizedBox(height: 10.0),
+  //           GestureDetector(
+  //             onTap: isCartEmpty
+  //                 ? null
+  //                 : () async {
+  //               User? user = FirebaseAuth.instance.currentUser;
+  //               String? userId = user?.uid;
+  //
+  //               if (userId != null) {
+  //                 junkCheck(context, userId, () async {
+  //                   await selectAddress(); // This will now navigate to OrderSummaryPage
+  //                 });
+  //               } else {
+  //                 print("Error: User ID is null");
+  //               }
+  //             },
+  //             child: Container(
+  //               padding: EdgeInsets.symmetric(vertical: 10.0),
+  //               width: MediaQuery.of(context).size.width,
+  //               decoration: BoxDecoration(
+  //                   color: isCartEmpty ? Colors.grey : Colors.black,
+  //                   borderRadius: BorderRadius.circular(10)),
+  //               margin: EdgeInsets.only(left: 20.0, right: 20.0, bottom: 8.0),
+  //               child: Center(
+  //                   child: Text(
+  //                     "Checkout",
+  //                     style: TextStyle(
+  //                         color: isCartEmpty ? Colors.black38 : Colors.white,
+  //                         fontSize: 20.0,
+  //                         fontWeight: FontWeight.bold),
+  //                   )),
+  //             ),
+  //           ),
+  //         ],
+  //       ),
+  //     ),
+  //   );
+  // }
   @override
   Widget build(BuildContext context) {
     bool isCartEmpty = total == 0; // Check if the cart is empty
 
     return Scaffold(
-      body: Container(
-        padding: EdgeInsets.only(top: 60.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Material(
-              elevation: 2.0,
-              child: Container(
-                padding: EdgeInsets.only(bottom: 10.0),
-                child: Center(child: Text("Food Cart")),
+      body: SingleChildScrollView( // Wrap the entire body in a SingleChildScrollView
+        child: Container(
+          padding: EdgeInsets.only(top: 60.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Material(
+                elevation: 2.0,
+                child: Container(
+                  padding: EdgeInsets.only(bottom: 10.0),
+                  child: Center(child: Text("Food Cart")),
+                ),
               ),
-            ),
-            SizedBox(height: 20.0),
-            Container(
-              height: MediaQuery.of(context).size.height / 2,
-              child: foodCart(),
-            ),
-            Spacer(),
-            Divider(),
-            Padding(
-              padding: EdgeInsets.only(left: 10.0, right: 10.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text("Subtotal", style: AppWidget.BoldTextFieldStyle()),
-                      Text("\₹ $total", style: AppWidget.SemiBoldFieldStyle()),
-                    ],
-                  ),
-                  SizedBox(height: 5.0),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text("Delivery Price", style: AppWidget.normalText()),
-                      Text("\₹ 40", style: AppWidget.SemiBoldFieldStyle()),
-                    ],
-                  ),
-                  Divider(),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text("Total Price", style: AppWidget.BoldTextFieldStyle()),
-                      Text("\₹ ${total + 40}", style: AppWidget.SemiBoldFieldStyle()), // Adding delivery price
-                    ],
-                  ),
-                ],
+              SizedBox(height: 20.0),
+              // Use a ListView instead of a fixed height Container
+              Container(
+                height: MediaQuery.of(context).size.height / 2,
+                child: foodCart(),
               ),
-            ),
-            SizedBox(height: 10.0),
-            GestureDetector(
-              onTap: isCartEmpty
-                  ? null
-                  : () async {
-                User? user = FirebaseAuth.instance.currentUser;
-                String? userId = user?.uid;
+              Divider(),
+              Padding(
+                padding: EdgeInsets.only(left: 10.0, right: 10.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text("Subtotal", style: AppWidget.BoldTextFieldStyle()),
+                        Text("\₹ $total", style: AppWidget.SemiBoldFieldStyle()),
+                      ],
+                    ),
+                    SizedBox(height: 5.0),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text("Delivery Price", style: AppWidget.normalText()),
+                        Text("\₹ 40", style: AppWidget.SemiBoldFieldStyle()),
+                      ],
+                    ),
+                    Divider(),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text("Total Price", style: AppWidget.BoldTextFieldStyle()),
+                        Text("\₹ ${total + 40}", style: AppWidget.SemiBoldFieldStyle()), // Adding delivery price
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 10.0),
+              GestureDetector(
+                onTap: isCartEmpty
+                    ? null
+                    : () async {
+                  User? user = FirebaseAuth.instance.currentUser ;
+                  String? userId = user?.uid;
 
-                if (userId != null) {
-                  junkCheck(context, userId, () async {
-                    await selectAddress(); // This will now navigate to OrderSummaryPage
-                  });
-                } else {
-                  print("Error: User ID is null");
-                }
-              },
-              child: Container(
-                padding: EdgeInsets.symmetric(vertical: 10.0),
-                width: MediaQuery.of(context).size.width,
-                decoration: BoxDecoration(
-                    color: isCartEmpty ? Colors.grey : Colors.black,
-                    borderRadius: BorderRadius.circular(10)),
-                margin: EdgeInsets.only(left: 20.0, right: 20.0, bottom: 8.0),
-                child: Center(
-                    child: Text(
-                      "Checkout",
-                      style: TextStyle(
-                          color: isCartEmpty ? Colors.black38 : Colors.white,
-                          fontSize: 20.0,
-                          fontWeight: FontWeight.bold),
-                    )),
+                  if (userId != null) {
+                    junkCheck(context, userId, () async {
+                      await selectAddress(); // This will now navigate to OrderSummaryPage
+                    });
+                  } else {
+                    print("Error: User ID is null");
+                  }
+                },
+                child: Container(
+                  padding: EdgeInsets.symmetric(vertical: 10.0),
+                  width: MediaQuery.of(context).size.width,
+                  decoration: BoxDecoration(
+                      color: isCartEmpty ? Colors.grey : Colors.black,
+                      borderRadius: BorderRadius.circular(10)),
+                  margin: EdgeInsets.only(left: 20.0, right: 20.0, bottom: 8.0),
+                  child: Center(
+                      child: Text(
+                        "Checkout",
+                        style: TextStyle(
+                            color: isCartEmpty ? Colors.black38 : Colors.white,
+                            fontSize: 20.0,
+                            fontWeight: FontWeight.bold),
+                      )),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

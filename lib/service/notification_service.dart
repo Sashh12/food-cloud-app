@@ -31,40 +31,52 @@ class NotificationService {
     await _setupLocalNotifications();
   }
 
-  /// Listen for Firestore Order Status Updates
+  // /// Listen for Firestore Order Status Updates
   // static void _listenForOrderUpdates() {
   //   FirebaseFirestore.instance.collection('Orders').snapshots().listen((snapshot) {
   //     for (var docChange in snapshot.docChanges) {
-  //       if (docChange.type == DocumentChangeType.modified) {
-  //         var data = docChange.doc.data();
-  //         if (data != null && data.containsKey('KitchenorderStatus')) {
-  //           String status = data['KitchenorderStatus'];
-  //           _showNotification("Order Update", "Your order status is now $status.");
-  //         }
+  //       var data = docChange.doc.data();
+  //       if (data == null) continue;
+  //
+  //       if (docChange.type == DocumentChangeType.added) {
+  //         // 🆕 Notify user when a new order is placed
+  //         _showNotification("Order Placed", "Your order has been placed successfully!");
+  //       }
+  //
+  //       if (docChange.type == DocumentChangeType.modified && data.containsKey('KitchenorderStatus')) {
+  //         // 🔄 Notify user when the order status is updated
+  //         String status = data['KitchenorderStatus'];
+  //         _showNotification("Order Update", "Your order status is now $status.");
   //       }
   //     }
   //   });
   // }
-
   static void _listenForOrderUpdates() {
-    FirebaseFirestore.instance.collection('Orders').snapshots().listen((snapshot) {
+    Timestamp lastChecked = Timestamp.now(); // Store the current time when app starts
+
+    FirebaseFirestore.instance
+        .collection('Orders')
+        .where('createdAt', isGreaterThan: lastChecked) // Only fetch new orders
+        .snapshots()
+        .listen((snapshot) {
       for (var docChange in snapshot.docChanges) {
         var data = docChange.doc.data();
         if (data == null) continue;
 
         if (docChange.type == DocumentChangeType.added) {
-          // 🆕 Notify user when a new order is placed
           _showNotification("Order Placed", "Your order has been placed successfully!");
         }
 
         if (docChange.type == DocumentChangeType.modified && data.containsKey('KitchenorderStatus')) {
-          // 🔄 Notify user when the order status is updated
           String status = data['KitchenorderStatus'];
           _showNotification("Order Update", "Your order status is now $status.");
         }
       }
+
+      lastChecked = Timestamp.now(); // Update last checked time
     });
   }
+
 
 
 

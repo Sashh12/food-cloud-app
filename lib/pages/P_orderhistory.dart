@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:foodapp/pages/bottomnav.dart';
+import 'package:foodapp/pages/orderTrackingPage.dart';
 import 'package:foodapp/service/database.dart';
 
 class OrderHistoryPage extends StatefulWidget {
@@ -46,7 +47,7 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
       _userCurrentOrderStream = _firestore
           .collection('Orders')
           .where('userId', isEqualTo: userId)
-          .where('KitchenorderStatus', whereIn: ['Pending', 'Preparing'])
+          .where('KitchenorderStatus', whereIn: ['Pending', 'Preparing','Out for Delivery'])
           .orderBy('orderDate', descending: true)
           .snapshots();
     } else {
@@ -254,6 +255,18 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
                           backgroundColor: Colors.redAccent,
                         ),
                         child: Text("Cancel Order", style: TextStyle(color: Colors.white)),
+                      ),
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => OrderTrackingPage(orderId: orderId),
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent,),
+                        child: Text("Order Tracking",style: TextStyle(color: Colors.white),),
                       ),
                     ],
                   ),

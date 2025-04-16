@@ -223,10 +223,18 @@ class _ProfileState extends State<Profile> {
     );
   }
 
+  // Widget _buildDeleteAccountButton() {
+  //   return GestureDetector(
+  //     onTap: () {
+  //       AuthMethods().deleteUser();
+  //     },
+  //     child: _buildActionButton(Icons.delete, "Delete Account"),
+  //   );
+  // }
   Widget _buildDeleteAccountButton() {
     return GestureDetector(
       onTap: () {
-        AuthMethods().deleteUser();
+        AuthMethods().deleteUser(context); // Pass context
       },
       child: _buildActionButton(Icons.delete, "Delete Account"),
     );

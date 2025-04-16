@@ -204,59 +204,141 @@ class _WalletState extends State<Wallet> {
     return calculatedAmount.toString();
   }
 
-  Future<void> openEdit() => showDialog(
+  // Future<void> openEdit() => showDialog(
+  //     context: context,
+  //     builder: (context) => AlertDialog(
+  //       content: SingleChildScrollView(
+  //         child: Container(
+  //           child: Column(
+  //             crossAxisAlignment: CrossAxisAlignment.start,
+  //             children: [
+  //               Row(children: [
+  //                 GestureDetector(
+  //                     onTap: () {
+  //                       Navigator.pop(context);
+  //                     },
+  //                     child: Icon(Icons.cancel)),
+  //                 SizedBox(width: 60.0),
+  //                 Center(
+  //                   child: Text(
+  //                     "Add Money",
+  //                     style: TextStyle(color: Color(0xFF008080), fontWeight: FontWeight.bold),
+  //                   ),
+  //                 )
+  //               ]),
+  //               SizedBox(height: 20.0),
+  //               Text("Amount"),
+  //               SizedBox(height: 10.0),
+  //               Container(
+  //                 padding: EdgeInsets.symmetric(horizontal: 10.0),
+  //                 decoration: BoxDecoration(
+  //                     border: Border.all(color: Colors.black38, width: 2.0),
+  //                     borderRadius: BorderRadius.circular(10)),
+  //                 child: TextField(
+  //                   controller: amountController,
+  //                   decoration: InputDecoration(border: InputBorder.none, hintText: 'Enter Amount'),
+  //                 ),
+  //               ),
+  //               SizedBox(height: 20.0),
+  //               Center(
+  //                 child: GestureDetector(
+  //                   onTap: () {
+  //                     Navigator.pop(context);
+  //                     makePayment(amountController.text);
+  //                   },
+  //                   child: Container(
+  //                     width: 100,
+  //                     padding: EdgeInsets.all(5),
+  //                     decoration: BoxDecoration(color: Color(0xFF008080), borderRadius: BorderRadius.circular(10)),
+  //                     child: Center(child: Text("Pay", style: TextStyle(color: Colors.white))),
+  //                   ),
+  //                 ),
+  //               )
+  //             ],
+  //           ),
+  //         ),
+  //       ),
+  //     ));
+  Future<void> openEdit() {
+    String? errorMessage;
+
+    return showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        content: SingleChildScrollView(
-          child: Container(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(children: [
-                  GestureDetector(
-                      onTap: () {
-                        Navigator.pop(context);
-                      },
-                      child: Icon(Icons.cancel)),
-                  SizedBox(width: 60.0),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) => AlertDialog(
+            content: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    GestureDetector(
+                        onTap: () {
+                          Navigator.pop(context);
+                        },
+                        child: Icon(Icons.cancel)),
+                    SizedBox(width: 60.0),
+                    Center(
+                      child: Text(
+                        "Add Money",
+                        style: TextStyle(color: Color(0xFF008080), fontWeight: FontWeight.bold),
+                      ),
+                    )
+                  ]),
+                  SizedBox(height: 20.0),
+                  Text("Amount"),
+                  SizedBox(height: 10.0),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 10.0),
+                    decoration: BoxDecoration(
+                        border: Border.all(color: Colors.black38, width: 2.0),
+                        borderRadius: BorderRadius.circular(10)),
+                    child: TextField(
+                      controller: amountController,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        border: InputBorder.none,
+                        hintText: 'Enter Amount',
+                      ),
+                    ),
+                  ),
+                  if (errorMessage != null) ...[
+                    SizedBox(height: 10),
+                    Text(errorMessage!, style: TextStyle(color: Colors.red)),
+                  ],
+                  SizedBox(height: 20.0),
                   Center(
-                    child: Text(
-                      "Add Money",
-                      style: TextStyle(color: Color(0xFF008080), fontWeight: FontWeight.bold),
+                    child: GestureDetector(
+                      onTap: () {
+                        final enteredAmount = int.tryParse(amountController.text);
+                        if (enteredAmount == null || enteredAmount < 40) {
+                          setState(() {
+                            errorMessage = "Amount must be ₹40 or more.";
+                          });
+                          return;
+                        }
+
+                        Navigator.pop(context);
+                        makePayment(amountController.text);
+                      },
+                      child: Container(
+                        width: 100,
+                        padding: EdgeInsets.all(5),
+                        decoration: BoxDecoration(
+                            color: Color(0xFF008080),
+                            borderRadius: BorderRadius.circular(10)),
+                        child: Center(
+                            child: Text("Pay",
+                                style: TextStyle(color: Colors.white))),
+                      ),
                     ),
                   )
-                ]),
-                SizedBox(height: 20.0),
-                Text("Amount"),
-                SizedBox(height: 10.0),
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 10.0),
-                  decoration: BoxDecoration(
-                      border: Border.all(color: Colors.black38, width: 2.0),
-                      borderRadius: BorderRadius.circular(10)),
-                  child: TextField(
-                    controller: amountController,
-                    decoration: InputDecoration(border: InputBorder.none, hintText: 'Enter Amount'),
-                  ),
-                ),
-                SizedBox(height: 20.0),
-                Center(
-                  child: GestureDetector(
-                    onTap: () {
-                      Navigator.pop(context);
-                      makePayment(amountController.text);
-                    },
-                    child: Container(
-                      width: 100,
-                      padding: EdgeInsets.all(5),
-                      decoration: BoxDecoration(color: Color(0xFF008080), borderRadius: BorderRadius.circular(10)),
-                      child: Center(child: Text("Pay", style: TextStyle(color: Colors.white))),
-                    ),
-                  ),
-                )
-              ],
+                ],
+              ),
             ),
           ),
-        ),
-      ));
+        );
+      },
+    );
+  }
 }

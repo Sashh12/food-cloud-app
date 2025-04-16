@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -25,6 +27,9 @@ class _HomeState extends State<Home> {
   final TextEditingController searchController = TextEditingController();
   List<Map<String, dynamic>> filteredProducts = [];
   bool isSearching = false;
+  PageController _pageController = PageController(viewportFraction: 0.75);
+  int _currentPage = 0;
+  Timer? _timer;
 
 
   @override
@@ -34,6 +39,26 @@ class _HomeState extends State<Home> {
     fetchUserData();
     speechService.initSpeech();
     // requestPermissions();
+
+    _timer = Timer.periodic(Duration(seconds: 3), (Timer timer) {
+      if (_pageController.hasClients) {
+        _currentPage++;
+        if (_currentPage >= 5) _currentPage = 0; // Adjust based on kitchen count
+        _pageController.animateToPage(
+          _currentPage,
+          duration: Duration(milliseconds: 600),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
+
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    _timer?.cancel();
+    super.dispose();
   }
 
   // Future<void> requestPermissions() async {
@@ -185,6 +210,104 @@ class _HomeState extends State<Home> {
               Text("₹$price", style: AppWidget.SemiBoldFieldStyle2()),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget buildFloatingKitchenBanners() {
+    return Positioned(
+      bottom: 20,
+      left: 0,
+      right: 0,
+      child: SizedBox(
+        height: 200,
+        child: StreamBuilder(
+          stream: FirebaseFirestore.instance.collection('kitchens').snapshots(),
+          builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
+            if (snapshot.hasData) {
+              return PageView.builder(
+                controller: _pageController,
+                itemCount: snapshot.data!.docs.length,
+                scrollDirection: Axis.horizontal,
+                itemBuilder: (context, index) {
+                  DocumentSnapshot ds = snapshot.data!.docs[index];
+
+                  String kitchenName = ds["kitchenname"] ?? "No Name";
+                  String? imageUrl = ds["ImageUrl"];
+
+                  return AnimatedContainer(
+                    duration: Duration(milliseconds: 500),
+                    curve: Curves.easeInOut,
+                    margin: EdgeInsets.symmetric(horizontal: 12, vertical: _currentPage == index ? 0 : 10),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 5)],
+                    ),
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => FoodItemsPage(kitchenname: kitchenName)),
+                        );
+                      },
+                      child: Stack(
+                        children: [
+                          // Background Image
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: imageUrl != null && imageUrl.isNotEmpty
+                                ? Image.network(
+                              imageUrl,
+                              width: double.infinity,
+                              height: 150,
+                              fit: BoxFit.cover,
+                            )
+                                : Container(
+                              width: double.infinity,
+                              height: 150,
+                              color: Colors.grey.shade300,
+                              // child: Icon(Icons.restaurant, size: 40, color: Colors.grey),
+                            ),
+                          ),
+
+                          // Kitchen Name Overlay
+                          Positioned(
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            child: Container(
+                              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.6),
+                                borderRadius: BorderRadius.only(
+                                  bottomLeft: Radius.circular(12),
+                                  bottomRight: Radius.circular(12),
+                                ),
+                              ),
+                              child: Text(
+                                kitchenName,
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
+            } else if (snapshot.hasError) {
+              return Center(child: Text('Error: ${snapshot.error}'));
+            } else {
+              return Center(child: CircularProgressIndicator());
+            }
+          },
         ),
       ),
     );
@@ -345,83 +468,6 @@ class _HomeState extends State<Home> {
   }
 
 
-  // void showListeningDialog(BuildContext context, bool isListening) {
-  //   if (context.mounted) {
-  //     showDialog(
-  //       context: context,
-  //       barrierDismissible: false,
-  //       builder: (context) {
-  //         return AlertDialog(
-  //           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-  //           content: Row(
-  //             children: [
-  //               isListening
-  //                   ? CircularProgressIndicator()
-  //                   : Icon(Icons.check_circle, color: Colors.green, size: 30),
-  //               SizedBox(width: 20),
-  //               Text(isListening ? "Listening..." : "Done!", style: TextStyle(fontSize: 18)),
-  //             ],
-  //           ),
-  //         );
-  //       },
-  //     );
-  //   }
-  //
-  //   // Close the dialog after 5 seconds if not listening
-  //   if (!isListening) {
-  //     Future.delayed(Duration(seconds: 5), () {
-  //       if (context.mounted) {
-  //         Navigator.of(context, rootNavigator: true).pop();
-  //       }
-  //     });
-  //   }
-  // }
-  //
-  //
-  // Widget buildSearchBar() {
-  //   return Container(
-  //     margin: const EdgeInsets.only(right: 15.0),
-  //     child: Padding(
-  //       padding: const EdgeInsets.symmetric(vertical: 5.0),
-  //       child: TextField(
-  //         controller: searchController,
-  //         decoration: InputDecoration(
-  //           hintText: "Search food...",
-  //           prefixIcon: Icon(Icons.search),
-  //           suffixIcon: IconButton(
-  //             icon: Icon(Icons.mic),
-  //             onPressed: () async {
-  //               var status = await Permission.microphone.request();
-  //               if (status.isGranted) {
-  //                 print("✅ Microphone permission granted.");
-  //
-  //                 speechService.startListening(
-  //                       (voiceInput) {
-  //                     setState(() {
-  //                       searchController.text = voiceInput;
-  //                     });
-  //                     filterSearch(voiceInput);
-  //                   },
-  //                   context,
-  //                   showListeningDialog, // Pass the function
-  //                 );
-  //               } else {
-  //                 print("❌ Microphone permission denied.");
-  //               }
-  //             },
-  //           ),
-  //           border: OutlineInputBorder(
-  //             borderRadius: BorderRadius.circular(10.0),
-  //           ),
-  //         ),
-  //         onSubmitted: (query) {
-  //           filterSearch(query); // Trigger search only when Enter is pressed
-  //         },
-  //       ),
-  //     ),
-  //   );
-  // }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -458,6 +504,12 @@ class _HomeState extends State<Home> {
                     ),
                   ),
                   Container(height: 250, child: buildKitchens()),
+                  // Stack(
+                  //   children: [
+                  //     Container(height: 230), // Placeholder to maintain layout
+                  //     buildFloatingKitchenBanners(), // Now correctly positioned
+                  //   ],
+                  // ),
                   Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Text(

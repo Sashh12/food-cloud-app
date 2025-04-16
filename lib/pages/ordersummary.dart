@@ -224,6 +224,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
         "address": widget.selectedAddress,
         "deliveryTime": widget.selectedDeliveryTime,
         "KitchenorderStatus": "Pending",
+        "assignedDeliveryGuy": null,
         "loyalty": loyaltyPoints, // ✅ Save earned loyalty in order
       });
 

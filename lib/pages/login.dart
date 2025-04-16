@@ -146,9 +146,17 @@ class _LogInState extends State<LogIn> {
                                     controller: usermailcontroller,
                                     validator: (value) {
                                       if (value == null || value.isEmpty) {
-                                        return 'Please Enter Email';
+                                        return 'Please enter email';
                                       }
-                                      return null;
+                                      // Email regex pattern for validation
+                                      String pattern =
+                                          r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$';
+                                      RegExp regExp = RegExp(pattern);
+
+                                      if (!regExp.hasMatch(value)) {
+                                        return 'Please enter a valid email';
+                                      }
+                                      return null; // Valid email
                                     },
                                     decoration: InputDecoration(hintText: "Email", prefixIcon: Icon(Icons.email_outlined)),
                                   ),
@@ -157,8 +165,19 @@ class _LogInState extends State<LogIn> {
                                     controller: userpasswordcontroller,
                                     validator: (value) {
                                       if (value == null || value.isEmpty) {
-                                        return 'Please Enter Password';
+                                        return 'Please enter password';
                                       }
+
+                                      // Check if the password is at least 6 characters long and contains at least one numeric digit
+                                      if (value.length < 6) {
+                                        return 'Password should be at least 6 characters';
+                                      }
+
+                                      // Check if the password contains at least one numeric digit
+                                      if (!RegExp(r'[0-9]').hasMatch(value)) {
+                                        return 'Password should contain at least one number';
+                                      }
+
                                       return null;
                                     },
                                     decoration: InputDecoration(hintText: "Password", prefixIcon: Icon(Icons.password_outlined)),

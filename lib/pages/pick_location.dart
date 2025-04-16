@@ -80,7 +80,7 @@ class LocationPickerAlertState extends State<LocationPickerAlert> {
                 }
                     : {},
                 initialCameraPosition: const CameraPosition(
-                  target: LatLng(0, 0),
+                  target: LatLng(0,0),
                   zoom: 10,
                 ),
                 myLocationEnabled: true, // Show the user's location button
