@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:foodapp/DeliveryBoyPanel/delivery_signup.dart';
 import 'package:foodapp/pages/bottomnav.dart';
 import 'package:foodapp/pages/login.dart';
 // import 'package:foodapp/service/database.dart';
@@ -496,6 +497,20 @@ class _SignUpState extends State<SignUp> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text("Login as Cloud Kitchen", style: TextStyle(color: Color(0xFF2E2D2E), fontSize: 20.0, fontWeight: FontWeight.w200, fontFamily: 'Poppins')),
+                        SizedBox(width: 8.0),
+                        Icon(Icons.arrow_forward, color: Colors.black54),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: 15.0),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => DeliveryBoySignUp()));
+                    },
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text("Login as Delivery", style: TextStyle(color: Color(0xFF2E2D2E), fontSize: 20.0, fontWeight: FontWeight.w200, fontFamily: 'Poppins')),
                         SizedBox(width: 8.0),
                         Icon(Icons.arrow_forward, color: Colors.black54),
                       ],

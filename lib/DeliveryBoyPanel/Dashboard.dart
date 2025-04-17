@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:foodapp/DeliveryBoyPanel/deliveryorders.dart';
 
@@ -7,6 +9,37 @@ class DeliveryHome extends StatefulWidget {
 }
 
 class _DeliveryHomeState extends State<DeliveryHome> {
+  int totalEarnings = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchEarnings();
+  }
+
+  Future<void> fetchEarnings() async {
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      print('Logged-in delivery boy UID: $uid');
+      final doc = await FirebaseFirestore.instance
+          .collection('delivery_boys')
+          .doc(uid)
+          .get();
+
+      if (doc.exists) {
+        final earningsRaw = doc.data()?['earnings'] ?? '0';
+        setState(() {
+          totalEarnings = int.tryParse(earningsRaw.toString()) ?? 0;
+        });
+      } else {
+        print('Document not found for delivery boy.');
+      }
+    } catch (e) {
+      print('Error fetching earnings: $e');
+    }
+  }
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -109,8 +142,8 @@ class _DeliveryHomeState extends State<DeliveryHome> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text("Earnings",style: TextStyle(color: Colors.black,
-                              fontSize: 20.0,fontWeight: FontWeight.w600),)
+                          Text("Earnings: ₹$totalEarnings", style: TextStyle(
+                              color: Colors.black, fontSize: 20.0, fontWeight: FontWeight.w600)),
                         ],
                       )
                     ],

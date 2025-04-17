@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:foodapp/DeliveryBoyPanel/assigneddelivery.dart';
 import 'package:location/location.dart' as loc;
@@ -39,6 +40,34 @@ class _DeliveryOrdersState extends State<DeliveryOrders> {
 
   }
 
+  // Future<void> _updateDeliveryStatus(String orderId, String newDeliveryStatus, Map<String, dynamic> orderData) async {
+  //   print("Updating delivery status for orderId: $orderId to $newDeliveryStatus");
+  //   try {
+  //     DocumentReference orderRef = _firestore.collection('Orders').doc(orderId);
+  //     await orderRef.update({'deliveryStatus': newDeliveryStatus});
+  //     print("Delivery status updated successfully");
+  //
+  //     if (newDeliveryStatus == 'Delivered') {
+  //       print("Setting 2-minute timer to move order to history...");
+  //       Timer(Duration(seconds: 5), () async {
+  //         try {
+  //           print("Timer completed. Moving order to order_history...");
+  //           DocumentReference orderHistoryRef = _firestore.collection('order_history').doc(orderId);
+  //           await orderHistoryRef.set(orderData);
+  //           print("Order moved to order_history");
+  //
+  //           await orderRef.delete();
+  //           print("Original order deleted from Orders collection");
+  //         } catch (e) {
+  //           print("Error moving order to history: $e");
+  //         }
+  //       });
+  //     }
+  //   } catch (e) {
+  //     print("Error updating delivery status: $e");
+  //   }
+  // }
+
   Future<void> _updateDeliveryStatus(String orderId, String newDeliveryStatus, Map<String, dynamic> orderData) async {
     print("Updating delivery status for orderId: $orderId to $newDeliveryStatus");
     try {
@@ -48,15 +77,49 @@ class _DeliveryOrdersState extends State<DeliveryOrders> {
 
       if (newDeliveryStatus == 'Delivered') {
         print("Setting 2-minute timer to move order to history...");
-        Timer(Duration(seconds: 5), () async {
+        Timer(Duration(seconds: 10), () async {
           try {
             print("Timer completed. Moving order to order_history...");
             DocumentReference orderHistoryRef = _firestore.collection('order_history').doc(orderId);
-            await orderHistoryRef.set(orderData);
+
+            // Ensure that all fields are non-null before setting in history
+            Map<String, dynamic> orderDataCopy = Map.from(orderData);
+            orderDataCopy.forEach((key, value) {
+              if (value == null) {
+                orderDataCopy[key] = '';
+              }
+            });
+
+            await orderHistoryRef.set(orderDataCopy);
             print("Order moved to order_history");
 
             await orderRef.delete();
             print("Original order deleted from Orders collection");
+
+            // ✅ Get current logged-in delivery boy UID
+            String? deliveryBoyId = FirebaseAuth.instance.currentUser?.uid;
+
+            if (deliveryBoyId != null && deliveryBoyId.isNotEmpty) {
+              DocumentReference deliveryBoyRef = _firestore.collection('delivery_boys').doc(deliveryBoyId);
+
+              try {
+                DocumentSnapshot deliveryBoySnapshot = await deliveryBoyRef.get();
+                if (deliveryBoySnapshot.exists) {
+                  var earningsRaw = deliveryBoySnapshot['earnings'] ?? '0';
+                  int earnings = int.tryParse(earningsRaw.toString()) ?? 0;
+                  earnings += 40;
+                  await deliveryBoyRef.update({'earnings': earnings.toString()});
+                  print("Delivery boy earnings updated successfully. New earnings: $earnings");
+                }
+                else {
+                  print("Delivery boy not found.");
+                }
+              } catch (e) {
+                print("Error updating delivery boy earnings: $e");
+              }
+            } else {
+              print("No logged-in delivery boy.");
+            }
           } catch (e) {
             print("Error moving order to history: $e");
           }
@@ -151,29 +214,7 @@ class _DeliveryOrdersState extends State<DeliveryOrders> {
     }
   }
 
-  // Future<void> _startDelivery(String orderId) async {
-  //   print("STARTING delivery process for orderId: $orderId");
-  //
-  //   final permissionGranted = await _checkAndRequestLocationPermissions();
-  //   if (!permissionGranted) {
-  //     print("❌ Cannot start delivery: Required permissions not granted");
-  //     return;
-  //   }
-  //
-  //   setState(() {
-  //     isDeliveryStarted = true;
-  //   });
-  //
-  //   if (clatitude != 0.0 && clongitude != 0.0) {
-  //     print("Using extracted lat/lng - lat: $clatitude, lng: $clongitude");
-  //
-  //     _subscribeToLocationChanges(orderId);
-  //     await addOrderTracking(orderId, clatitude, clongitude);
-  //     print("Initial order tracking added for $orderId");
-  //   } else {
-  //     print("❌ Invalid lat/lng detected. Please extract address first.");
-  //   }
-  // }
+
 
   Future<void> _startDelivery(String orderId) async {
     print("STARTING delivery process for orderId: $orderId");

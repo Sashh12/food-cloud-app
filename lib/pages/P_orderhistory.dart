@@ -142,51 +142,7 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
     }
   }
 
-  // Future<void> _cancelOrder(String orderId) async {
-  //   try {
-  //     DocumentSnapshot orderDoc =
-  //     await _firestore.collection('Orders').doc(orderId).get();
-  //     if (!orderDoc.exists) {
-  //       print("Order does not exist");
-  //       return;
-  //     }
-  //
-  //     int totalAmount = orderDoc['totalAmount'];
-  //     final userId = _auth.currentUser?.uid;
-  //
-  //     if (userId != null) {
-  //       DocumentSnapshot userDoc =
-  //       await _firestore.collection('users').doc(userId).get();
-  //       if (userDoc.exists) {
-  //         int walletAmount = int.parse(userDoc['Wallet']);
-  //         int updatedWallet = walletAmount + totalAmount;
-  //
-  //         await _firestore
-  //             .collection('users')
-  //             .doc(userId)
-  //             .update({"Wallet": updatedWallet.toString()});
-  //       }
-  //     }
-  //
-  //     await _firestore.collection('Orders').doc(orderId).delete();
-  //
-  //     if (mounted) {
-  //       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-  //         content: Text("Order Cancelled and Amount Refunded"),
-  //         backgroundColor: Colors.redAccent,
-  //       ));
-  //     }
-  //
-  //     Future.delayed(Duration(seconds: 1), () {
-  //       if (mounted) {
-  //         Navigator.pushReplacement(
-  //             context, MaterialPageRoute(builder: (context) => BottomNav()));
-  //       }
-  //     });
-  //   } catch (e) {
-  //     print("Error cancelling order: $e");
-  //   }
-  // }
+
 
   Widget currentOrdersList() {
     return StreamBuilder<QuerySnapshot>(
@@ -199,7 +155,7 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
           return Center(child: Text('Error: ${snapshot.error}'));
         }
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return Center(child: Text('No order history available'));
+          return Center(child: Text('No current orders available'));
         }
 
         final userId = _auth.currentUser?.uid;
@@ -212,7 +168,10 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
             final orderId = ds.id;
             final orderDate = (ds['orderDate'] as Timestamp).toDate();
             final totalAmount = ds['totalAmount'];
+            final orderstatus = ds['KitchenorderStatus'];
             final items = ds['items'] as List<dynamic>;
+
+            double progress = _getOrderProgress(orderstatus);
 
             return Container(
               margin: EdgeInsets.all(8),
@@ -232,6 +191,32 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
                       Text('Order ID: $orderId', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                       Text('Order Date: ${orderDate.toLocal()}'),
                       Text('Total Amount: ₹$totalAmount', style: TextStyle(fontWeight: FontWeight.bold)),
+                      SizedBox(height: 10,),
+                      // Progress Bar for Order Status
+                      Container(
+                        width: double.infinity,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300], // Background color for the line
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: FractionallySizedBox(
+                          alignment: Alignment.centerLeft,
+                          widthFactor: progress, // Fill percentage based on status
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.green, // You can modify this color
+                              borderRadius: BorderRadius.circular(5),
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 6),
+                      Text(
+                        'Order Status: $orderstatus',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+
                       SizedBox(height: 10.0),
                       Text('Items:', style: TextStyle(fontWeight: FontWeight.bold)),
                       ...items.map((item) {
@@ -242,32 +227,75 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
                         );
                       }).toList(),
                       SizedBox(height: 10.0),
-                      ElevatedButton(
-                        onPressed: () => _reorderItems(items),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.orangeAccent,
-                        ),
-                        child: Text("Reorder",style: TextStyle(color: Colors.black)),
-                      ),
-                      ElevatedButton(
-                        onPressed: () => _cancelOrder(orderId),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.redAccent,
-                        ),
-                        child: Text("Cancel Order", style: TextStyle(color: Colors.white)),
-                      ),
-                      ElevatedButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => OrderTrackingPage(orderId: orderId),
+                      orderstatus == "Out for Delivery"
+                          ? Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          // Reorder button on the left
+                          ElevatedButton(
+                            onPressed: () => _reorderItems(items),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.orangeAccent,
                             ),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent,),
-                        child: Text("Order Tracking",style: TextStyle(color: Colors.white),),
-                      ),
+                            child: Text("Reorder", style: TextStyle(color: Colors.black)),
+                          ),
+                          // Order Tracking button on the right
+                          ElevatedButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => OrderTrackingPage(orderId: orderId),
+                                ),
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+                            child: Text("Order Tracking", style: TextStyle(color: Colors.white)),
+                          ),
+                        ],
+                      )
+                          : Column(
+                        children: [
+                          // Cancel + Tracking Row
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              ElevatedButton(
+                                onPressed: () => _cancelOrder(orderId),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.redAccent,
+                                ),
+                                child: Text("Cancel Order", style: TextStyle(color: Colors.white)),
+                              ),
+                              ElevatedButton(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => OrderTrackingPage(orderId: orderId),
+                                    ),
+                                  );
+                                },
+                                style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+                                child: Text("Order Tracking", style: TextStyle(color: Colors.white)),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 10),
+                          // Centered Reorder
+                          Center(
+                            child: ElevatedButton(
+                              onPressed: () => _reorderItems(items),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.orangeAccent,
+                              ),
+                              child: Text("Reorder", style: TextStyle(color: Colors.black)),
+                            ),
+                          ),
+                        ],
+                      )
+
+
                     ],
                   ),
                 ),
@@ -279,6 +307,109 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
     );
   }
 
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return Colors.orange; // Pending is orange
+      case 'preparing':
+        return Colors.blue; // Confirmed is blue
+      case 'out for delivery':
+        return Colors.green; // Delivered is green
+      case 'cancelled':
+        return Colors.red; // Cancelled is red
+      default:
+        return Colors.grey; // Default is gray for unknown status
+    }
+  }
+  double _getOrderProgress(String status) {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return 0.1; // 10% filled
+      case 'preparing':
+        return 0.2; // 20% filled
+      case 'out for delivery':
+        return 0.4; // 40% filled
+      case 'Completed':
+        return 1.0; // 100% filled
+      case 'cancelled':
+        return 0.0; // 0% filled (optional)
+      default:
+        return 0.0; // Default to 0% if status is unknown
+    }
+  }
+
+  // Widget pastOrdersList() {
+  //   return StreamBuilder<QuerySnapshot>(
+  //     stream: _userOrderHistoryStream,
+  //     builder: (context, snapshot) {
+  //       if (snapshot.connectionState == ConnectionState.waiting) {
+  //         return Center(child: CircularProgressIndicator());
+  //       }
+  //
+  //       if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+  //         return Center(child: Text('No order history available'));
+  //       }
+  //
+  //       var orders = snapshot.data!.docs;
+  //
+  //       return ListView.builder(
+  //         padding: EdgeInsets.zero,
+  //         itemCount: snapshot.data!.docs.length,
+  //         itemBuilder: (context, index) {
+  //           DocumentSnapshot ds = snapshot.data!.docs[index];
+  //           final orderId = ds.id;
+  //           final orderDate = (ds['orderDate'] as Timestamp).toDate();
+  //           final totalAmount = ds['totalAmount'];
+  //           final orderstatus = ds['KitchenorderStatus'];
+  //           final items = ds['items'] as List<dynamic>;
+  //
+  //           return Container(
+  //             margin: EdgeInsets.all(8),
+  //             child: Material(
+  //               elevation: 5.0,
+  //               borderRadius: BorderRadius.circular(10),
+  //               child: Container(
+  //                 padding: EdgeInsets.all(8),
+  //                 decoration: BoxDecoration(
+  //                   color: Colors.white,
+  //                   borderRadius: BorderRadius.circular(10),
+  //                   border: Border.all(color: Colors.black54, width: 2),
+  //                 ),
+  //                 child: Column(
+  //                   crossAxisAlignment: CrossAxisAlignment.start,
+  //                   children: [
+  //                     Text('Order ID: $orderId', e: TextStyle(fontWeight: FontWeight.stylbold, fontSize: 16)),
+  //                     Text('Order Date: ${orderDate.toLocal()}'),
+  //                     Text('Total Amount: ₹$totalAmount', style: TextStyle(fontWeight: FontWeight.bold)),
+  //                     Text('Order Status: ${orderstatus}', style: TextStyle(fontWeight: FontWeight.bold)),
+  //                     SizedBox(height: 10.0),
+  //                     Text('Items:', style: TextStyle(fontWeight: FontWeight.bold)),
+  //                     ...items.map((item) {
+  //                       return ListTile(
+  //                         leading: Image.network(item['Image'], width: 50, height: 50, fit: BoxFit.cover),
+  //                         title: Text(item['Name']),
+  //                         subtitle: Text('Quantity: ${item['Quantity']}, Total: ₹${item['Total']}'),
+  //                       );
+  //                     }).toList(),
+  //                     SizedBox(height: 10.0),
+  //                     ElevatedButton(
+  //                       onPressed: () => _reorderItems(items),
+  //                       style: ElevatedButton.styleFrom(
+  //                         backgroundColor: Colors.orangeAccent,
+  //                       ),
+  //                       child: Text("Reorder", ),
+  //                     ),
+  //                   ],
+  //                 ),
+  //               ),
+  //             ),
+  //           );
+  //         },
+  //       );
+  //     },
+  //   );
+  // }
   Widget pastOrdersList() {
     return StreamBuilder<QuerySnapshot>(
       stream: _userOrderHistoryStream,
@@ -295,12 +426,13 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
 
         return ListView.builder(
           padding: EdgeInsets.zero,
-          itemCount: snapshot.data!.docs.length,
+          itemCount: orders.length,
           itemBuilder: (context, index) {
-            DocumentSnapshot ds = snapshot.data!.docs[index];
+            DocumentSnapshot ds = orders[index];
             final orderId = ds.id;
             final orderDate = (ds['orderDate'] as Timestamp).toDate();
             final totalAmount = ds['totalAmount'];
+            final orderstatus = ds['KitchenorderStatus'];
             final items = ds['items'] as List<dynamic>;
 
             return Container(
@@ -321,6 +453,21 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
                       Text('Order ID: $orderId', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                       Text('Order Date: ${orderDate.toLocal()}'),
                       Text('Total Amount: ₹$totalAmount', style: TextStyle(fontWeight: FontWeight.bold)),
+
+                      // Styled Order Status Chip
+                      Row(
+                        children: [
+                          Text('Order Status: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                          Chip(
+                            label: Text(
+                              orderstatus,
+                              style: TextStyle(color: Colors.white),
+                            ),
+                            backgroundColor: _getStatusColor(orderstatus),
+                          ),
+                        ],
+                      ),
+
                       SizedBox(height: 10.0),
                       Text('Items:', style: TextStyle(fontWeight: FontWeight.bold)),
                       ...items.map((item) {
@@ -336,7 +483,7 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.orangeAccent,
                         ),
-                        child: Text("Reorder", ),
+                        child: Text("Reorder"),
                       ),
                     ],
                   ),
@@ -348,6 +495,7 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
       },
     );
   }
+
 
   @override
   Widget build(BuildContext context) {

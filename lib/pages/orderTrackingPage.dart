@@ -1,6 +1,10 @@
 import 'dart:async';
+import 'dart:ui';
+import 'dart:convert' as convert;
+import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
@@ -14,11 +18,14 @@ class OrderTrackingPage extends StatefulWidget {
 }
 
 class _OrderTrackingPageState extends State<OrderTrackingPage> {
-  LatLng destination = LatLng(18.3363, 76.1489);
-  LatLng deliveryBoyLocation = LatLng(10.3275, 76.35762);
+  LatLng destination = LatLng(19.4490872, 72.7865252);
+  LatLng deliveryBoyLocation = LatLng(19.4492441, 72.7702145);
   GoogleMapController? mapController;
   BitmapDescriptor markerIcon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet);
   double remainingDistance = 0.0;
+  Set<Polyline> polylines = {};
+  final String googleAPIKey = "AIzaSyAG6JOTFGhdjYkEpIgQ4HYuw-jPikL5_bA";
+
 
   FirebaseFirestore firestore = FirebaseFirestore.instance;
   late CollectionReference orderTrackingCollection;
@@ -76,17 +83,27 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
 
 
   // Function to set a custom marker icon
-  void addCustomMarker() {
-    ImageConfiguration configuration = ImageConfiguration(size: Size(0, 0), devicePixelRatio: 5,);
-    BitmapDescriptor.fromAssetImage(configuration, "images/deliveryboy.png").then((icon) {
+  Future<void> addCustomMarker() async {
+    final ByteData byteData = await rootBundle.load('images/deliveryboy.png');
+    final Uint8List imageData = byteData.buffer.asUint8List();
+
+    final Codec codec = await instantiateImageCodec(
+      imageData,
+      targetWidth: 120, // <- Set desired width
+      targetHeight: 120, // <- Set desired height
+    );
+    final FrameInfo frame = await codec.getNextFrame();
+    final ByteData? resizedData = await frame.image.toByteData(format: ImageByteFormat.png);
+
+    if (resizedData != null) {
+      final BitmapDescriptor resizedIcon = BitmapDescriptor.fromBytes(resizedData.buffer.asUint8List());
       setState(() {
-        markerIcon = icon;
-        print("✅ Custom marker icon set");
+        markerIcon = resizedIcon;
+        print("✅ Custom marker icon set with new size");
       });
-    }).catchError((e) {
-      print("❌ Error setting custom marker icon: $e");
-    });
+    }
   }
+
 
   // Function to update current location
   double previousDistance = 0.0;
@@ -105,6 +122,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
       setState(() {
         deliveryBoyLocation = newLocation;
       });
+      updatePolyline();
       print("📍 Updated current location to: $deliveryBoyLocation");
     }
   }
@@ -141,6 +159,82 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
     });
 
     print("Remaining Distance: $distanceInKm kilometers");
+  }
+
+  Future<List<LatLng>> getRouteCoordinates(LatLng start, LatLng end) async {
+    String url = 'https://maps.googleapis.com/maps/api/directions/json?'
+        'origin=${start.latitude},${start.longitude}&'
+        'destination=${end.latitude},${end.longitude}&'
+        'key=$googleAPIKey';
+
+    final response = await http.get(Uri.parse(url));
+
+    if (response.statusCode == 200) {
+      final data = convert.jsonDecode(response.body);
+      if (data['status'] == 'OK') {
+        List<LatLng> route = [];
+        for (var step in data['routes'][0]['legs'][0]['steps']) {
+          var polyline = step['polyline']['points'];
+          route.addAll(decodePolyline(polyline));
+        }
+        print("Route coordinates: $route"); // Debug print
+        return route;
+      } else {
+        print("Error fetching directions: ${data['status']}");
+        return [];
+      }
+    } else {
+      throw Exception('Failed to load directions');
+    }
+  }
+
+  List<LatLng> decodePolyline(String poly) {
+    List<LatLng> points = [];
+    var index = 0, len = poly.length;
+    int lat = 0, lng = 0;
+
+    while (index < len) {
+      int b, shift = 0, result = 0;
+      do {
+        b = poly.codeUnitAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      int dlat = ((result >> 1) ^ (~(result >> 1) << 1));
+      lat += dlat;
+
+      shift = 0;
+      result = 0;
+      do {
+        b = poly.codeUnitAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      int dlng = ((result >> 1) ^ (~(result >> 1) << 1));
+      lng += dlng;
+
+      points.add(LatLng(lat / 1E5, lng / 1E5));
+    }
+    return points;
+  }
+
+  void updatePolyline() async {
+    List<LatLng> route = await getRouteCoordinates(deliveryBoyLocation, destination);
+    if (route.isNotEmpty) {
+      setState(() {
+        polylines = {
+          Polyline(
+            polylineId: PolylineId("route"),
+            points: route,
+            color: Colors.blue,
+            width: 5,
+          ),
+        };
+      });
+      print("Polyline updated with route: $route"); // Debug print
+    } else {
+      print("No route found for polyline.");
+    }
   }
 
   // Start tracking the order by periodically fetching tracking data
@@ -189,12 +283,23 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
       print("📍 UI Updated with new location: $latitude, $longitude");
 
       // Update the camera position to the new location
-      mapController?.animateCamera(
-        CameraUpdate.newLatLng(deliveryBoyLocation),
-      );
+      mapController?.animateCamera(CameraUpdate.newLatLngBounds(
+        LatLngBounds(
+          southwest: LatLng(
+            deliveryBoyLocation.latitude < destination.latitude ? deliveryBoyLocation.latitude : destination.latitude,
+            deliveryBoyLocation.longitude < destination.longitude ? deliveryBoyLocation.longitude : destination.longitude,
+          ),
+          northeast: LatLng(
+            deliveryBoyLocation.latitude > destination.latitude ? deliveryBoyLocation.latitude : destination.latitude,
+            deliveryBoyLocation.longitude > destination.longitude ? deliveryBoyLocation.longitude : destination.longitude,
+          ),
+        ),
+        100.0, // Padding
+      ));
 
       // Recalculate remaining distance
       calculateRemainingDistance();
+      updatePolyline();
     });
   }
 
@@ -263,6 +368,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
                   infoWindow: InfoWindow(title: "Customer", snippet: 'Lat: ${destination.latitude}, Lng: ${destination.longitude}'),
                 ),
               },
+              polylines: polylines,
             ),
             Positioned(
               top: 16.01,

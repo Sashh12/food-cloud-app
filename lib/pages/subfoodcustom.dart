@@ -61,6 +61,8 @@ class _SubCustomizationDialogState extends State<SubCustomizationDialog> {
   }
 
   Future<void> showSubscribeDialog(Map<String, dynamic> foodItem, String customization) async {
+    bool isSaving = false;
+    BuildContext outerContext = context;
     List<String> daysOfWeek = [
       'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
     ];
@@ -73,7 +75,7 @@ class _SubCustomizationDialogState extends State<SubCustomizationDialog> {
     DateTime now = DateTime.now();
 
     showDialog(
-      context: context,
+      context: outerContext,
       builder: (BuildContext context) {
         return StatefulBuilder(builder: (context, setState) {
           return AlertDialog(
@@ -90,9 +92,11 @@ class _SubCustomizationDialogState extends State<SubCustomizationDialog> {
                   value: selectedDay.isEmpty ? null : selectedDay,
                   hint: Text("Choose a Day"),
                   onChanged: (String? newValue) {
+                    print("Dropdown value changed to: $newValue");
                     setState(() {
                       selectedDay = newValue!;
                       selectedDate = getDateForDay(newValue);
+                      print("Selected day: $selectedDay, Selected date: $selectedDate");
                     });
                   },
                   items: daysOfWeek.map((String day) {
@@ -120,6 +124,7 @@ class _SubCustomizationDialogState extends State<SubCustomizationDialog> {
                             ? TimeOfDay(hour: now.hour, minute: now.minute)
                             : TimeOfDay(hour: 11, minute: 0); // Start from 11 AM
 
+                        print("Initial lunch time: $initialTime");
                         TimeOfDay? pickedTime = await showTimePicker(
                           context: context,
                           initialTime: initialTime,
@@ -130,7 +135,10 @@ class _SubCustomizationDialogState extends State<SubCustomizationDialog> {
                           final minLunchTime = 11 * 60;  // 11:00 AM
                           final maxLunchTime = 16 * 60;  // 4:00 PM
 
+                          print("Picked lunch time in minutes: $pickedInMinutes");
+
                           if (pickedInMinutes < minLunchTime || pickedInMinutes > maxLunchTime) {
+                            print("Invalid lunch time selected.");
                             showDialog(
                               context: context,
                               builder: (context) => AlertDialog(
@@ -148,6 +156,7 @@ class _SubCustomizationDialogState extends State<SubCustomizationDialog> {
                             setState(() {
                               selectedDinnerTime = null; // Deselect dinner if lunch is selected
                               selectedLunchTime = pickedTime;
+                              print("Lunch time selected: ${selectedLunchTime!.format(context)}");
                             });
                           }
                         }
@@ -168,6 +177,7 @@ class _SubCustomizationDialogState extends State<SubCustomizationDialog> {
                             ? TimeOfDay(hour: now.hour, minute: now.minute)
                             : TimeOfDay(hour: 19, minute: 0); // Start from 7 PM
 
+                        print("Initial dinner time: $initialTime");
                         TimeOfDay? pickedTime = await showTimePicker(
                           context: context,
                           initialTime: initialTime,
@@ -178,7 +188,10 @@ class _SubCustomizationDialogState extends State<SubCustomizationDialog> {
                           final minDinnerTime = 19 * 60;  // 7:00 PM
                           final maxDinnerTime = 23 * 60;  // 11:00 PM
 
+                          print("Picked dinner time in minutes: $pickedInMinutes");
+
                           if (pickedInMinutes < minDinnerTime || pickedInMinutes > maxDinnerTime) {
+                            print("Invalid dinner time selected.");
                             showDialog(
                               context: context,
                               builder: (context) => AlertDialog(
@@ -196,6 +209,7 @@ class _SubCustomizationDialogState extends State<SubCustomizationDialog> {
                             setState(() {
                               selectedLunchTime = null; // Deselect lunch if dinner is selected
                               selectedDinnerTime = pickedTime;
+                              print("Dinner time selected: ${selectedDinnerTime!.format(context)}");
                             });
                           }
                         }
@@ -210,15 +224,15 @@ class _SubCustomizationDialogState extends State<SubCustomizationDialog> {
             ),
             actions: <Widget>[
               TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop(); // Close the dialog
-                },
-                child: Text('Cancel'),
-              ),
-              TextButton(
                 onPressed: () async {
+                  print("Subscribe button clicked");
+
                   if (selectedDay.isNotEmpty && (selectedLunchTime != null || selectedDinnerTime != null)) {
-                    await saveSubscription(
+                    print("Proceeding to save subscription...");
+
+                    Navigator.of(context).pop(); // Close the dialog first
+
+                    bool isSaved = await saveSubscription(
                       foodItem,
                       customization,
                       selectedDay,
@@ -227,19 +241,55 @@ class _SubCustomizationDialogState extends State<SubCustomizationDialog> {
                       selectedDinnerTime,
                     );
 
-                    ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text("Subscription saved for $selectedDay"))
+                    // Feedback via print instead of SnackBar
+                    if (isSaved) {
+                      print("✅ Subscription saved for $selectedDay");
+                    } else {
+                      print("❌ Failed to save subscription");
+                    }
+                  } else {
+                    print("⚠️ Please select a day and a time");
+                  }
+                },
+                child: Text('Cancel'),
+              ),
+
+
+              TextButton(
+                onPressed: () async {
+                  print("Subscribe button clicked");
+
+                  if (selectedDay.isNotEmpty && (selectedLunchTime != null || selectedDinnerTime != null)) {
+                    print("Proceeding to save subscription...");
+
+                    Navigator.of(context).pop(); // Close the dialog first
+
+                    bool isSaved = await saveSubscription(
+                      foodItem,
+                      customization,
+                      selectedDay,
+                      selectedDate,
+                      selectedLunchTime,
+                      selectedDinnerTime,
                     );
 
-                    Navigator.of(context).pop();
+                    // Now show snackbar in outerContext (not dialog context)
+                    ScaffoldMessenger.of(outerContext).showSnackBar(
+                      SnackBar(
+                        content: Text(isSaved
+                            ? "Subscription saved for $selectedDay"
+                            : "Failed to save subscription"),
+                      ),
+                    );
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text("Please select a day and at least one meal time."))
+                      SnackBar(content: Text("Please select a day and a time")),
                     );
                   }
                 },
                 child: Text('Subscribe'),
-              ),
+              )
+
             ],
           );
         });
@@ -247,34 +297,62 @@ class _SubCustomizationDialogState extends State<SubCustomizationDialog> {
     );
   }
 
-  // Function to save the subscription data to Firestore
-  Future<void> saveSubscription(
+  Future<bool> saveSubscription(
       Map<String, dynamic> foodItem,
       String customization,
       String dayOfWeek,
       DateTime date,
       TimeOfDay? lunchTime,
-      TimeOfDay? dinnerTime
+      TimeOfDay? dinnerTime,
       ) async {
+    print("Entered saveSubscription function");
+
+    // Log id to confirm it’s not null
+    print("id value before saving: $id");
+
     if (id != null) {
+      print("id is valid, proceeding to save subscription");
+
+      // Custom function to format TimeOfDay as HH:mm
+      String formatTime(TimeOfDay time) {
+        final now = DateTime.now();
+        final dt = DateTime(now.year, now.month, now.day, time.hour, time.minute);
+        return DateFormat('HH:mm').format(dt);
+      }
+
+      // Create subscription data to be saved
       Map<String, dynamic> subscriptionData = {
-        "productName": foodItem["name"],  // Fetch name from food item
+        "productName": foodItem["name"],
         "price": foodItem["price"],
-        "customization": customization,  // Store customization
+        "customization": customization,
         "day": dayOfWeek,
         "date": DateFormat('dd/MM/yy').format(date),
-        "lunchTime": lunchTime != null ? lunchTime.format(context) : "Not Set",
-        "dinnerTime": dinnerTime != null ? dinnerTime.format(context) : "Not Set",
+        "lunchTime": lunchTime != null ? formatTime(lunchTime) : "Not Set",
+        "dinnerTime": dinnerTime != null ? formatTime(dinnerTime) : "Not Set",
         "kitchenName": foodItem["kitchenName"],
         "FoodCategory": foodItem["FoodCategory"],
       };
 
-      await FirebaseFirestore.instance
-          .collection('subscribe')
-          .doc(id)
-          .collection('days')
-          .doc(dayOfWeek)
-          .set(subscriptionData);
+      print("Subscription data being saved: $subscriptionData");
+
+      try {
+        print("Attempting to save subscription to Firestore...");
+        await FirebaseFirestore.instance
+            .collection('subscribe')
+            .doc(id)
+            .collection('days')
+            .doc(dayOfWeek)
+            .set(subscriptionData);
+
+        print("✅ Subscription saved successfully");
+        return true;
+      } catch (e) {
+        print(" Firebase error while saving subscription: $e");
+        return false;
+      }
+    } else {
+      print("⚠️ Error: id is null");
+      return false;
     }
   }
 
@@ -367,8 +445,6 @@ class _SubCustomizationDialogState extends State<SubCustomizationDialog> {
       ));
     }
   }
-
-
 
   @override
   Widget build(BuildContext context) {

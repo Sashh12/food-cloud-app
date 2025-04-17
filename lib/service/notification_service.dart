@@ -52,11 +52,8 @@ class NotificationService {
   //   });
   // }
   static void _listenForOrderUpdates() {
-    Timestamp lastChecked = Timestamp.now(); // Store the current time when app starts
-
     FirebaseFirestore.instance
         .collection('Orders')
-        .where('createdAt', isGreaterThan: lastChecked) // Only fetch new orders
         .snapshots()
         .listen((snapshot) {
       for (var docChange in snapshot.docChanges) {
@@ -67,15 +64,15 @@ class NotificationService {
           _showNotification("Order Placed", "Your order has been placed successfully!");
         }
 
-        if (docChange.type == DocumentChangeType.modified && data.containsKey('KitchenorderStatus')) {
+        if (docChange.type == DocumentChangeType.modified &&
+            data.containsKey('KitchenorderStatus')) {
           String status = data['KitchenorderStatus'];
           _showNotification("Order Update", "Your order status is now $status.");
         }
       }
-
-      lastChecked = Timestamp.now(); // Update last checked time
     });
   }
+
 
 
 

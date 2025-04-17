@@ -532,19 +532,6 @@ class _OrderState extends State<Order> {
 
       print("📦 Total orders in past 7 days: ${orderSnapshot.docs.length}");
 
-      // 🟢 Count junk orders
-      // int junkOrderCount = orderSnapshot.docs.where((doc) {
-      //   final data = doc.data() as Map<String, dynamic>?; // Explicitly cast to Map
-      //   if (data == null || !data.containsKey("items") || data["items"] == null) return false;
-      //
-      //   List<dynamic> items = data["items"]; // Cast to List
-      //   return items.any((item) {
-      //     if (item is Map<String, dynamic> && item.containsKey("FoodCategory")) {
-      //       return item["FoodCategory"] == "Junk";
-      //     }
-      //     return false;
-      //   });
-      // }).length;
       int junkOrderCount = orderSnapshot.docs.where((doc) {
         final data = doc.data() as Map<String, dynamic>?; // Explicitly cast to Map
         if (data == null || !data.containsKey("items") || data["items"] == null || !data.containsKey("orderDate")) {
@@ -631,99 +618,6 @@ class _OrderState extends State<Order> {
     }
   }
 
-  // @override
-  // Widget build(BuildContext context) {
-  //   bool isCartEmpty = total == 0; // Check if the cart is empty
-  //
-  //   return Scaffold(
-  //     body: Container(
-  //       padding: EdgeInsets.only(top: 60.0),
-  //       child: Column(
-  //         crossAxisAlignment: CrossAxisAlignment.start,
-  //         children: [
-  //           Material(
-  //             elevation: 2.0,
-  //             child: Container(
-  //               padding: EdgeInsets.only(bottom: 10.0),
-  //               child: Center(child: Text("Food Cart")),
-  //             ),
-  //           ),
-  //           SizedBox(height: 20.0),
-  //           Container(
-  //             height: MediaQuery.of(context).size.height / 2,
-  //             child: foodCart(),
-  //           ),
-  //           Spacer(),
-  //           Divider(),
-  //           Padding(
-  //             padding: EdgeInsets.only(left: 10.0, right: 10.0),
-  //             child: Column(
-  //               crossAxisAlignment: CrossAxisAlignment.start,
-  //               children: [
-  //                 Row(
-  //                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-  //                   children: [
-  //                     Text("Subtotal", style: AppWidget.BoldTextFieldStyle()),
-  //                     Text("\₹ $total", style: AppWidget.SemiBoldFieldStyle()),
-  //                   ],
-  //                 ),
-  //                 SizedBox(height: 5.0),
-  //                 Row(
-  //                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-  //                   children: [
-  //                     Text("Delivery Price", style: AppWidget.normalText()),
-  //                     Text("\₹ 40", style: AppWidget.SemiBoldFieldStyle()),
-  //                   ],
-  //                 ),
-  //                 Divider(),
-  //                 Row(
-  //                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-  //                   children: [
-  //                     Text("Total Price", style: AppWidget.BoldTextFieldStyle()),
-  //                     Text("\₹ ${total + 40}", style: AppWidget.SemiBoldFieldStyle()), // Adding delivery price
-  //                   ],
-  //                 ),
-  //               ],
-  //             ),
-  //           ),
-  //           SizedBox(height: 10.0),
-  //           GestureDetector(
-  //             onTap: isCartEmpty
-  //                 ? null
-  //                 : () async {
-  //               User? user = FirebaseAuth.instance.currentUser;
-  //               String? userId = user?.uid;
-  //
-  //               if (userId != null) {
-  //                 junkCheck(context, userId, () async {
-  //                   await selectAddress(); // This will now navigate to OrderSummaryPage
-  //                 });
-  //               } else {
-  //                 print("Error: User ID is null");
-  //               }
-  //             },
-  //             child: Container(
-  //               padding: EdgeInsets.symmetric(vertical: 10.0),
-  //               width: MediaQuery.of(context).size.width,
-  //               decoration: BoxDecoration(
-  //                   color: isCartEmpty ? Colors.grey : Colors.black,
-  //                   borderRadius: BorderRadius.circular(10)),
-  //               margin: EdgeInsets.only(left: 20.0, right: 20.0, bottom: 8.0),
-  //               child: Center(
-  //                   child: Text(
-  //                     "Checkout",
-  //                     style: TextStyle(
-  //                         color: isCartEmpty ? Colors.black38 : Colors.white,
-  //                         fontSize: 20.0,
-  //                         fontWeight: FontWeight.bold),
-  //                   )),
-  //             ),
-  //           ),
-  //         ],
-  //       ),
-  //     ),
-  //   );
-  // }
   @override
   Widget build(BuildContext context) {
     bool isCartEmpty = total == 0; // Check if the cart is empty
@@ -757,8 +651,8 @@ class _OrderState extends State<Order> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text("Subtotal", style: AppWidget.BoldTextFieldStyle()),
-                        Text("\₹ $total", style: AppWidget.SemiBoldFieldStyle()),
+                        Text("Subtotal", style: TextStyle(fontSize: 23, color: Colors.black, fontWeight: FontWeight.bold, fontFamily: 'Poppins')),
+                        Text("\₹ $total", style: TextStyle(fontSize: 19, color: Colors.black, fontWeight: FontWeight.bold, fontFamily: 'Poppins')),
                       ],
                     ),
                     SizedBox(height: 5.0),
@@ -766,15 +660,15 @@ class _OrderState extends State<Order> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text("Delivery Price", style: AppWidget.normalText()),
-                        Text("\₹ 40", style: AppWidget.SemiBoldFieldStyle()),
+                        Text("\₹ 40", style: TextStyle(fontSize: 17, color: Colors.black, fontWeight: FontWeight.bold, fontFamily: 'Poppins')),
                       ],
                     ),
                     Divider(),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text("Total Price", style: AppWidget.BoldTextFieldStyle()),
-                        Text("\₹ ${total + 40}", style: AppWidget.SemiBoldFieldStyle()), // Adding delivery price
+                        Text("Total Price", style: TextStyle(fontSize: 24, color: Colors.black, fontWeight: FontWeight.bold, fontFamily: 'Poppins')),
+                        Text("\₹ ${total + 40}", style: TextStyle(fontSize: 24, color: Colors.black, fontWeight: FontWeight.bold, fontFamily: 'Poppins')), // Adding delivery price
                       ],
                     ),
                   ],

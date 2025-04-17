@@ -317,61 +317,64 @@ class _SubscribePageState extends State<SubscribePage> {
                           },
                           child: Text("Pay"),
                         ),
-                        ElevatedButton(
-                          onPressed: () async {
-                            bool? confirmCancel = await showDialog<bool>(
-                              context: context,
-                              builder: (context) => AlertDialog(
-                                title: Text("Cancel Subscription"),
-                                content: Text("Are you sure you want to cancel this subscription?"),
-                                actions: <Widget>[
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context, false),
-                                    child: Text("No"),
-                                  ),
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context, true),
-                                    child: Text("Yes"),
-                                  ),
-                                ],
-                              ),
-                            );
+                        // Show Cancel button only if not paid
+                        if (!isPaid)
+                          ElevatedButton(
+                            onPressed: () async {
+                              bool? confirmCancel = await showDialog<bool>(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: Text("Cancel Subscription"),
+                                  content: Text("Are you sure you want to cancel this subscription?"),
+                                  actions: <Widget>[
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context, false),
+                                      child: Text("No"),
+                                    ),
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context, true),
+                                      child: Text("Yes"),
+                                    ),
+                                  ],
+                                ),
+                              );
 
-                            if (confirmCancel == true) {
-                              await FirebaseFirestore.instance
-                                  .collection('subscribe')
-                                  .doc(id)
-                                  .collection('days')
-                                  .doc(subscriptionId)
-                                  .delete();
-
-                              QuerySnapshot orderDocs = await FirebaseFirestore.instance
-                                  .collection('subscription_Orders')
-                                  .where('userId', isEqualTo: id)
-                                  .where('subscriptionId', isEqualTo: subscriptionId)
-                                  .get();
-
-                              for (var orderDoc in orderDocs.docs) {
+                              if (confirmCancel == true) {
                                 await FirebaseFirestore.instance
-                                    .collection('subscription_Orders')
-                                    .doc(orderDoc.id)
+                                    .collection('subscribe')
+                                    .doc(id)
+                                    .collection('days')
+                                    .doc(subscriptionId)
                                     .delete();
+
+                                QuerySnapshot orderDocs = await FirebaseFirestore.instance
+                                    .collection('subscription_Orders')
+                                    .where('userId', isEqualTo: id)
+                                    .where('subscriptionId', isEqualTo: subscriptionId)
+                                    .get();
+
+                                for (var orderDoc in orderDocs.docs) {
+                                  await FirebaseFirestore.instance
+                                      .collection('subscription_Orders')
+                                      .doc(orderDoc.id)
+                                      .delete();
+                                }
+
+                                await fetchSubscriptions();
+
+                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                  content: Text("Subscription canceled successfully"),
+                                ));
                               }
-
-                              await fetchSubscriptions();
-
-                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                content: Text("Subscription canceled successfully"),
-                              ));
-                            }
-                          },
-                          child: Text("Cancel",style: TextStyle(color: Colors.black)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
+                            },
+                            child: Text("Cancel", style: TextStyle(color: Colors.white)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                            ),
                           ),
-                        ),
                       ],
                     ),
+
                   ],
                 ),
               ),

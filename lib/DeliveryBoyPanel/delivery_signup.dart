@@ -13,7 +13,7 @@ class DeliveryBoySignUp extends StatefulWidget {
 }
 
 class _DeliveryBoySignUpState extends State<DeliveryBoySignUp> {
-  String name = "", aadhaarCardNumber = "", contactNumber = "", email = "", password = "";
+  String name = "", aadhaarCardNumber = "", contactNumber = "", email = "", password = "", earnings ="";
   final _formKey = GlobalKey<FormState>();
 
   TextEditingController nameController = TextEditingController();
@@ -33,6 +33,7 @@ class _DeliveryBoySignUpState extends State<DeliveryBoySignUp> {
         'aadhaarCardNumber': aadhaarCardNumber,
         'contactNumber': contactNumber,
         'email': email,
+        'earnings': ""
       });
 
       // Navigate to the login page after successful sign-up
