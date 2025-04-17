@@ -3,6 +3,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:foodapp/DeliveryBoyPanel/delivery_signup.dart';
 import 'package:foodapp/pages/bottomnav.dart';
 import 'package:foodapp/pages/forgotpasssword.dart';
 import 'package:foodapp/pages/login.dart';
@@ -204,6 +205,20 @@ class _VendorLoginState extends State<VendorLogin> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text("Back to Customer login", style: TextStyle( color: Color(0xFF2E2D2E), fontSize: 20.0, fontWeight: FontWeight.w200, fontFamily: 'Poppins',),),
+                        SizedBox(width: 8.0), // Adds spacing between the text and the icon
+                        Icon(Icons.arrow_forward, color: Colors.black54,),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: 20.0,),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => DeliveryBoySignUp()),);
+                    },
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text("Delivery Boy", style: TextStyle( color: Color(0xFF2E2D2E), fontSize: 20.0, fontWeight: FontWeight.w200, fontFamily: 'Poppins',),),
                         SizedBox(width: 8.0), // Adds spacing between the text and the icon
                         Icon(Icons.arrow_forward, color: Colors.black54,),
                       ],

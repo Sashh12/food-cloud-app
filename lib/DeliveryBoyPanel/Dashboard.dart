@@ -1,7 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:foodapp/DeliveryBoyPanel/delivery_signup.dart';
 import 'package:foodapp/DeliveryBoyPanel/deliveryorders.dart';
+import 'package:foodapp/service/auth.dart';
 
 class DeliveryHome extends StatefulWidget {
   @override
@@ -49,7 +51,12 @@ class _DeliveryHomeState extends State<DeliveryHome> {
           IconButton(
             icon: Icon(Icons.logout),
             onPressed: () {
-              // Handle logout
+              AuthMethods().SignOut();
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (context) => DeliveryBoySignUp(),
+                ), // Replace 'SignUpPage' with your actual signup widget
+              );
             },
           ),
         ],

@@ -233,6 +233,14 @@ class _DeliveryBoySignUpState extends State<DeliveryBoySignUp> {
                       },
                       child: Text("Already have an account? Log In", style: TextStyle(fontSize: 16.0, fontWeight: FontWeight.bold)),
                     ),
+                    SizedBox(height: 10.0),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => LogIn()));
+                      },
+                      child: Text("Customer Login", style: TextStyle(fontSize: 16.0, fontWeight: FontWeight.bold)),
+                    ),
+
                   ],
                 ),
               ),
