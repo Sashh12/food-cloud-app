@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:foodapp/pages/C_Customerview.dart';
 import 'package:foodapp/pages/bottomnav.dart';
 import 'package:foodapp/pages/orderTrackingPage.dart';
 import 'package:foodapp/service/database.dart';
@@ -281,6 +282,12 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
                               ),
                             ],
                           ),
+                          ElevatedButton(
+                            child: Text('Watch Live (Customer)'),
+                            onPressed: () {
+                              Navigator.push(context, MaterialPageRoute(builder: (_) => CustomerViewPage(orderId: orderId)));
+                            },
+                          ),
                           SizedBox(height: 10),
                           // Centered Reorder
                           Center(
@@ -339,77 +346,6 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
     }
   }
 
-  // Widget pastOrdersList() {
-  //   return StreamBuilder<QuerySnapshot>(
-  //     stream: _userOrderHistoryStream,
-  //     builder: (context, snapshot) {
-  //       if (snapshot.connectionState == ConnectionState.waiting) {
-  //         return Center(child: CircularProgressIndicator());
-  //       }
-  //
-  //       if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-  //         return Center(child: Text('No order history available'));
-  //       }
-  //
-  //       var orders = snapshot.data!.docs;
-  //
-  //       return ListView.builder(
-  //         padding: EdgeInsets.zero,
-  //         itemCount: snapshot.data!.docs.length,
-  //         itemBuilder: (context, index) {
-  //           DocumentSnapshot ds = snapshot.data!.docs[index];
-  //           final orderId = ds.id;
-  //           final orderDate = (ds['orderDate'] as Timestamp).toDate();
-  //           final totalAmount = ds['totalAmount'];
-  //           final orderstatus = ds['KitchenorderStatus'];
-  //           final items = ds['items'] as List<dynamic>;
-  //
-  //           return Container(
-  //             margin: EdgeInsets.all(8),
-  //             child: Material(
-  //               elevation: 5.0,
-  //               borderRadius: BorderRadius.circular(10),
-  //               child: Container(
-  //                 padding: EdgeInsets.all(8),
-  //                 decoration: BoxDecoration(
-  //                   color: Colors.white,
-  //                   borderRadius: BorderRadius.circular(10),
-  //                   border: Border.all(color: Colors.black54, width: 2),
-  //                 ),
-  //                 child: Column(
-  //                   crossAxisAlignment: CrossAxisAlignment.start,
-  //                   children: [
-  //                     Text('Order ID: $orderId', e: TextStyle(fontWeight: FontWeight.stylbold, fontSize: 16)),
-  //                     Text('Order Date: ${orderDate.toLocal()}'),
-  //                     Text('Total Amount: ₹$totalAmount', style: TextStyle(fontWeight: FontWeight.bold)),
-  //                     Text('Order Status: ${orderstatus}', style: TextStyle(fontWeight: FontWeight.bold)),
-  //                     SizedBox(height: 10.0),
-  //                     Text('Items:', style: TextStyle(fontWeight: FontWeight.bold)),
-  //                     ...items.map((item) {
-  //                       return ListTile(
-  //                         leading: Image.network(item['Image'], width: 50, height: 50, fit: BoxFit.cover),
-  //                         title: Text(item['Name']),
-  //                         subtitle: Text('Quantity: ${item['Quantity']}, Total: ₹${item['Total']}'),
-  //                       );
-  //                     }).toList(),
-  //                     SizedBox(height: 10.0),
-  //                     ElevatedButton(
-  //                       onPressed: () => _reorderItems(items),
-  //                       style: ElevatedButton.styleFrom(
-  //                         backgroundColor: Colors.orangeAccent,
-  //                       ),
-  //                       child: Text("Reorder", ),
-  //                     ),
-  //                   ],
-  //                 ),
-  //               ),
-  //             ),
-  //           );
-  //         },
-  //       );
-  //     },
-  //   );
-  // }
   Widget pastOrdersList() {
     return StreamBuilder<QuerySnapshot>(
       stream: _userOrderHistoryStream,

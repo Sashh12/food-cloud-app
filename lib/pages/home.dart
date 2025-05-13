@@ -145,15 +145,21 @@ class _HomeState extends State<Home> {
 
   // Display all items fetched from Firestore
   Widget allItems() {
-    return products.isEmpty ? Center(child: CircularProgressIndicator()): ListView.builder(
+    return products.isEmpty
+        ? Center(child: CircularProgressIndicator())
+        : ListView.builder(
       padding: EdgeInsets.zero,
       itemCount: products.length,
       shrinkWrap: true,
       scrollDirection: Axis.horizontal,
       itemBuilder: (context, index) {
         Map<String, dynamic> itemData = products[index];
+        bool isUnavailable = itemData["isUnavailable"] ?? false;  // Check the availability status
+
         return GestureDetector(
-          onTap: () {
+          onTap: isUnavailable
+              ? null  // Disable the onTap if the item is unavailable
+              : () {
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -167,19 +173,18 @@ class _HomeState extends State<Home> {
                   optionalIngredients: itemData["optionalIngredients"] ?? "",
                   spiceLevels: itemData["spiceLevels"] ?? "",
                   FoodCategory: itemData["FoodCategory"] ?? "",
-
                 ),
               ),
             );
           },
-          child: buildProductCardFromMap(itemData),
+          child: buildProductCardFromMap(itemData, isUnavailable), // Pass availability status to the card builder
         );
       },
     );
   }
 
-  // Build product card from map of item data
-  Widget buildProductCardFromMap(Map<String, dynamic> product) {
+// Build product card from map of item data
+  Widget buildProductCardFromMap(Map<String, dynamic> product, bool isUnavailable) {
     String imageUrl = product["Image"] ?? "https://via.placeholder.com/180";
     String name = product["Name"] ?? "No Name";
     String price = product["Price"] ?? "0";
@@ -208,12 +213,26 @@ class _HomeState extends State<Home> {
               Text("Delicious and Juicy", style: AppWidget.LightTextFieldStyle()),
               SizedBox(height: 5.0),
               Text("₹$price", style: AppWidget.SemiBoldFieldStyle2()),
+              // Display "Unavailable" text if the item is unavailable
+              if (isUnavailable)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: Text(
+                    "Unavailable",
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
       ),
     );
   }
+
 
   Widget buildFloatingKitchenBanners() {
     return Positioned(

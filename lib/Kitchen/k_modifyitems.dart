@@ -87,88 +87,109 @@ class _KModifyitemsState extends State<KModifyitems> {
   }
 
   // Modify an existing food item in Firestore
+  // Modify an existing food item in Firestore
   Future<void> modifyItem(Map<String, dynamic> item) async {
     TextEditingController nameController = TextEditingController(text: item['name']);
     TextEditingController priceController = TextEditingController(text: item['price'].toString());
     TextEditingController detailController = TextEditingController(text: item['detail']);
     TextEditingController ingredientController = TextEditingController(text: item['ingredients'].join(','));
 
+    // Track the current availability status
+    bool isUnavailable = item['isUnavailable'] ?? false;
+
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: Text('Modify Item'),
-          content: SingleChildScrollView(
-            child: Column(
-              children: [
-                TextField(
-                  controller: nameController,
-                  decoration: InputDecoration(labelText: 'Item Name'),
+        return StatefulBuilder(  // Use StatefulBuilder to manage the state inside the AlertDialog
+          builder: (BuildContext context, StateSetter setState) {
+            return AlertDialog(
+              title: Text('Modify Item'),
+              content: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: nameController,
+                      decoration: InputDecoration(labelText: 'Item Name'),
+                    ),
+                    TextField(
+                      controller: priceController,
+                      decoration: InputDecoration(labelText: 'Price'),
+                      keyboardType: TextInputType.number,
+                    ),
+                    TextField(
+                      controller: detailController,
+                      decoration: InputDecoration(labelText: 'Detail'),
+                    ),
+                    TextField(
+                      controller: ingredientController,
+                      decoration: InputDecoration(labelText: 'Ingredients (comma separated)'),
+                    ),
+                    // Add a Switch to toggle item availability
+                    SwitchListTile(
+                      title: Text('Unavailable'),
+                      value: isUnavailable,
+                      onChanged: (bool value) {
+                        setState(() {
+                          isUnavailable = value;  // Update the local state
+                        });
+                      },
+                    ),
+                  ],
                 ),
-                TextField(
-                  controller: priceController,
-                  decoration: InputDecoration(labelText: 'Price'),
-                  keyboardType: TextInputType.number,
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () async {
+                    // Validate and update the food item in Firestore
+                    if (nameController.text.isNotEmpty &&
+                        priceController.text.isNotEmpty &&
+                        detailController.text.isNotEmpty &&
+                        ingredientController.text.isNotEmpty) {
+                      try {
+                        Map<String, dynamic> updatedItem = {
+                          'Name': nameController.text,
+                          'Price': priceController.text,
+                          'Detail': detailController.text,
+                          'Ingredients': ingredientController.text.split(','),
+                          'isUnavailable': isUnavailable,  // Update the availability status
+                        };
+
+                        await FirebaseFirestore.instance
+                            .collection('fooditem')
+                            .doc(currentKitchenname)
+                            .collection('categories')
+                            .doc(item['category'])
+                            .collection('Items')
+                            .doc(item['itemId'])
+                            .update(updatedItem);
+
+                        Navigator.of(context).pop();
+                        fetchKitchenItems(); // Refresh item list
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text("Item updated successfully!"),
+                        ));
+                      } catch (e) {
+                        print("Error updating item: $e");
+                      }
+                    }
+                  },
+                  child: Text('Update'),
                 ),
-                TextField(
-                  controller: detailController,
-                  decoration: InputDecoration(labelText: 'Detail'),
-                ),
-                TextField(
-                  controller: ingredientController,
-                  decoration: InputDecoration(labelText: 'Ingredients (comma separated)'),
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: Text('Cancel'),
                 ),
               ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () async {
-                // Validate and update the food item in Firestore
-                if (nameController.text.isNotEmpty &&
-                    priceController.text.isNotEmpty &&
-                    detailController.text.isNotEmpty &&
-                    ingredientController.text.isNotEmpty) {
-                  try {
-                    Map<String, dynamic> updatedItem = {
-                      'Name': nameController.text,
-                      'Price': priceController.text,
-                      'Detail': detailController.text,
-                      'Ingredients': ingredientController.text.split(','),
-                    };
-
-                    await FirebaseFirestore.instance
-                        .collection('fooditem')
-                        .doc(currentKitchenname)
-                        .collection('categories')
-                        .doc(item['category'])
-                        .collection('Items')
-                        .doc(item['itemId'])
-                        .update(updatedItem);
-
-                    Navigator.of(context).pop();
-                    fetchKitchenItems(); // Refresh item list
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text("Item updated successfully!"),
-                    ));
-                  } catch (e) {
-                    print("Error updating item: $e");
-                  }
-                }
-              },
-              child: Text('Update'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text('Cancel'),
-            ),
-          ],
+            );
+          },
         );
       },
     );
   }
+
+
 
   @override
   Widget build(BuildContext context) {

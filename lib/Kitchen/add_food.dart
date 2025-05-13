@@ -97,7 +97,8 @@ class _AddFoodState extends State<AddFood> {
           namecontroller.text.isNotEmpty &&
           pricecontroller.text.isNotEmpty &&
           detailcontroller.text.isNotEmpty &&
-          ingredientcontroller.text.isNotEmpty && optionalingredientcontroller.text.isNotEmpty) {
+          ingredientcontroller.text.isNotEmpty &&
+          optionalingredientcontroller.text.isNotEmpty) {
 
         String addId = randomAlphaNumeric(10);
 
@@ -109,16 +110,17 @@ class _AddFoodState extends State<AddFood> {
         UploadTask task = firebaseStorageRef.putFile(selectedImage!);
         var downloadUrl = await (await task).ref.getDownloadURL();
 
-        // Create the food item map with ingredients
+        // Create the food item map with ingredients and the 'isUnavailable' field
         Map<String, dynamic> addItem = {
           "Image": downloadUrl,
           "Name": namecontroller.text,
           "Price": pricecontroller.text,
           "Detail": detailcontroller.text,
           "Ingredients": ingredientcontroller.text.split(','),
-          "optionalIngredients":  optionalingredientcontroller.text.split(','),
+          "optionalIngredients": optionalingredientcontroller.text.split(','),
           "spiceLevels": ["Mild", "Medium", "Spicy"],
           "kitchenname": currentKitchenname,
+          "isUnavailable": false, // Adding the 'isUnavailable' field, defaulting to 'false'
         };
 
         String categoryToUse = isAddingCategory
@@ -166,6 +168,7 @@ class _AddFoodState extends State<AddFood> {
       return false;
     }
   }
+
 
   @override
   Widget build(BuildContext context) {

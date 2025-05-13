@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:foodapp/Kitchen/K_cameraView.dart';
 
 class VendorsOrders extends StatefulWidget {
   @override
@@ -184,6 +185,18 @@ class _VendorsOrdersState extends State<VendorsOrders> {
                             },
                           ),
                         ],
+
+                      ),
+                      ElevatedButton(
+                        child: Text('Go Live (Kitchen)'),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => KitchenStreamPage(orderId: orderId), // Pass orderId
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),
